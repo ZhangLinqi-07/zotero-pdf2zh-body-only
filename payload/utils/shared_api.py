@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Resolve the user's existing translation API without exposing its credential."""
 from dataclasses import dataclass, field
+import base64
+import copy
 import json
 from pathlib import Path
 import threading
@@ -150,31 +152,146 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ValueError("API 返回重定向，请填写最终的 API 地址")
 
 
-def chat(profile, messages, max_tokens):
-    endpoint = profile.endpoint
-    if not endpoint.endswith("/chat/completions"):
-        endpoint += "/chat/completions"
-    payload = json.dumps({"model": profile.model, "messages": messages,
-                          "max_tokens": max_tokens, "stream": False}, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(endpoint, data=payload, method="POST", headers={
-        "Authorization": "Bearer " + profile.key, "Content-Type": "application/json",
-        "Accept": "application/json", "User-Agent": "zotero-pdf2zh-body-only",
-    })
+PDF_PROTOCOLS = {'auto', 'gemini', 'chat', 'responses'}
+
+
+def pdf_protocol(profile, selected='auto'):
+    if selected not in PDF_PROTOCOLS:
+        raise ValueError('无效的 PDF 接口格式')
+    if selected != 'auto':
+        return selected
+    return 'gemini' if profile.provider == 'gemini' or profile.model.lower().removeprefix('models/').startswith('gemini') else 'chat'
+
+
+def pdf_request(profile, pdf, filename, system_prompt, protocol='auto'):
+    """One complete original PDF. Omit every generation/thinking/token budget."""
+    protocol = pdf_protocol(profile, protocol)
+    endpoint = checked_endpoint(profile.endpoint)
+    encoded = base64.b64encode(pdf).decode('ascii')
+    instruction = '请完整阅读所附 PDF，按系统中的论文阅读模板生成中文深度结构化笔记。'
+    headers = {'Authorization': 'Bearer ' + profile.key, 'Content-Type': 'application/json',
+               'Accept': 'application/json', 'User-Agent': 'zotero-pdf2zh-body-only'}
+    if protocol == 'gemini':
+        if endpoint.endswith('/openai'):
+            endpoint = endpoint[:-len('/openai')]
+        if endpoint.endswith('/v1'):
+            endpoint = endpoint[:-len('/v1')]
+        if not endpoint.endswith(('/v1beta', '/v1alpha')):
+            endpoint += '/v1beta'
+        endpoint += '/models/' + urllib.parse.quote(profile.model.removeprefix('models/'), safe='') + ':generateContent'
+        if urllib.parse.urlsplit(endpoint).hostname == 'generativelanguage.googleapis.com':
+            headers.pop('Authorization')
+            headers['x-goog-api-key'] = profile.key
+        payload = {'systemInstruction': {'parts': [{'text': system_prompt}]},
+                   'contents': [{'role': 'user', 'parts': [
+                       {'inlineData': {'mimeType': 'application/pdf', 'data': encoded}}, {'text': instruction}]}]}
+    elif protocol == 'responses':
+        if not endpoint.endswith('/responses'):
+            endpoint += '/responses'
+        payload = {'model': profile.model, 'instructions': system_prompt, 'stream': False,
+                   'input': [{'role': 'user', 'content': [
+                       {'type': 'input_file', 'filename': filename, 'file_data': 'data:application/pdf;base64,' + encoded},
+                       {'type': 'input_text', 'text': instruction}]}]}
+    else:
+        endpoint += '/chat/completions'
+        payload = {'model': profile.model, 'stream': False, 'messages': [
+            {'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': [
+                {'type': 'file', 'file': {'filename': filename, 'file_data': 'data:application/pdf;base64,' + encoded}},
+                {'type': 'text', 'text': instruction}]}]}
+    return endpoint, payload, headers, protocol
+
+
+def parse_pdf_response(data, protocol):
+    if protocol == 'gemini':
+        choices = data.get('candidates') or []
+        if not choices:
+            raise ValueError('API 未返回 PDF 阅读内容，可能被内容过滤或不支持该文件')
+        candidate = choices[0]
+        content = '\n'.join(part.get('text', '') for part in candidate.get('content', {}).get('parts', [])
+                            if not part.get('thought') and isinstance(part.get('text'), str))
+        metadata = data.get('usageMetadata') or {}
+        usage = {}
+        for original, name in [('promptTokenCount', 'prompt_tokens'), ('candidatesTokenCount', 'completion_tokens'),
+                               ('thoughtsTokenCount', 'reasoning_tokens'), ('totalTokenCount', 'total_tokens')]:
+            if isinstance(metadata.get(original), int) and metadata[original] >= 0:
+                usage[name] = metadata[original]
+        if 'completion_tokens' in usage:
+            usage['completion_tokens'] += usage.get('reasoning_tokens', 0)
+        finish = candidate.get('finishReason')
+        finish = 'stop' if finish == 'STOP' else 'length' if finish == 'MAX_TOKENS' else 'content_filter' if finish in {
+            'SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'} else 'unknown'
+    elif protocol == 'responses':
+        content = '\n'.join(part.get('text', '') for item in data.get('output', []) if item.get('type') == 'message'
+                            for part in item.get('content', []) if part.get('type') == 'output_text')
+        original = data.get('usage') or {}
+        usage = {new: original[old] for old, new in [('input_tokens', 'prompt_tokens'), ('output_tokens', 'completion_tokens'),
+                                                   ('total_tokens', 'total_tokens')] if isinstance(original.get(old), int)}
+        finish = 'stop' if data.get('status') == 'completed' else 'length' if (data.get('incomplete_details') or {}).get('reason') == 'max_output_tokens' else 'unknown'
+    else:
+        choices = data.get('choices') or []
+        if not choices:
+            raise ValueError('API 未返回 PDF 阅读内容，请确认接口和模型支持 PDF 文件输入')
+        content = choices[0].get('message', {}).get('content', '')
+        if isinstance(content, list):
+            content = '\n'.join(part.get('text', '') for part in content if part.get('type') == 'text')
+        usage = data.get('usage') or {}
+        finish = choices[0].get('finish_reason') or 'unknown'
+    if not isinstance(content, str) or (not content.strip() and finish != 'length'):
+        raise ValueError('API 返回了空内容，请确认模型支持完整 PDF 阅读')
+    return content, usage, finish
+
+
+CONTINUE_PDF = ('继续完成同一份论文阅读笔记，从上一条输出中断的准确位置继续。不要重新开始，不要重复已有标题、段落或公式。'
+                '此前提交的完整 PDF 仍是阅读依据，请完成余下全部内容。若上一条实际已经完成，只输出 [KINBO_READING_COMPLETE]。')
+
+
+def continue_pdf_request(body, response, protocol):
+    body = copy.deepcopy(body)
+    if protocol == 'gemini':
+        # Retain native thought signatures exactly as returned by the API.
+        model = copy.deepcopy(response['candidates'][0].get('content') or {})
+        model.setdefault('role', 'model')
+        if model.get('parts'):
+            body['contents'].extend([model, {'role': 'user', 'parts': [{'text': CONTINUE_PDF}]}])
+        else:
+            body['contents'][-1]['parts'].append({'text': '上一轮达到输出上限但没有返回正文，请直接开始输出完整笔记。' + CONTINUE_PDF})
+    elif protocol == 'responses':
+        body['input'].extend(copy.deepcopy(response.get('output', [])))
+        body['input'].append({'role': 'user', 'content': [{'type': 'input_text', 'text': CONTINUE_PDF}]})
+    else:
+        original = response['choices'][0]['message']
+        assistant = {'role': 'assistant', 'content': copy.deepcopy(original.get('content', ''))}
+        if 'reasoning_content' in original:
+            assistant['reasoning_content'] = original['reasoning_content']
+        if assistant['content']:
+            body['messages'].extend([assistant, {'role': 'user', 'content': CONTINUE_PDF}])
+        elif isinstance(body['messages'][-1]['content'], list):
+            body['messages'][-1]['content'].append({'type': 'text', 'text': CONTINUE_PDF})
+        else:
+            body['messages'][-1]['content'] += '\n\n' + CONTINUE_PDF
+    return body
+
+
+def read_pdf(profile, pdf, filename, system_prompt, protocol='auto', timeout=None, conversation=None):
+    endpoint, body, headers, protocol = pdf_request(profile, pdf, filename, system_prompt, protocol)
+    if conversation and conversation.get('response'):
+        body = continue_pdf_request(conversation['body'], conversation['response'], protocol)
+    req = urllib.request.Request(endpoint, data=json.dumps(body, ensure_ascii=False).encode('utf-8'), method='POST', headers=headers)
     try:
-        with urllib.request.build_opener(NoRedirect()).open(req, timeout=profile.timeout) as response:
+        with urllib.request.build_opener(NoRedirect()).open(req, timeout=timeout) as response:
             data = json.load(response)
     except urllib.error.HTTPError as error:
         # Provider errors sometimes echo credentials or request content.
-        raise ValueError(f"API 请求失败，HTTP {error.code}。请检查接口、模型权限和额度") from None
+        status = error.code
+        error.close()
+        if status in {400, 404, 413, 415, 422}:
+            raise ValueError(f'完整 PDF 请求失败，HTTP {status}。请确认接口格式、模型文件输入能力、文件大小与上下文范围。未自动切分、降级或重试') from None
+        raise ValueError(f'API 请求失败，HTTP {status}。请检查接口、模型权限和额度。未自动重试') from None
     except urllib.error.URLError:
         raise ValueError("无法连接 API，请检查网络与接口地址") from None
-    choices = data.get("choices") or []
-    if not choices:
-        raise ValueError("API 未返回阅读内容")
-    content = choices[0].get("message", {}).get("content", "")
-    if isinstance(content, list):
-        content = "\n".join(part.get("text", "") for part in content if part.get("type") == "text")
-    if not isinstance(content, str) or not content.strip():
-        raise ValueError("API 返回了空内容，请确认模型支持文本阅读")
-    usage = data.get("usage") or {}
-    return content, usage, choices[0].get("finish_reason")
+    except TimeoutError:
+        raise ValueError('PDF 阅读请求等待超时，可调整网络等待时间。未自动重新调用 API') from None
+    result = parse_pdf_response(data, protocol)
+    if conversation is not None:
+        conversation.update(body=body, response=data)
+    return result

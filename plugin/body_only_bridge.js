@@ -77,7 +77,7 @@ var BodyOnlyBridge = (() => {
     try {
       const base = baseURL();
       const capability = await Zotero.HTTP.request('GET', base + '/api/capabilities', { responseType: 'json', timeout: 10000 });
-      if (!capability.response?.zoteroNotes || !capability.response?.directReading) throw new Error('请先启动 0.3.1 或更新版本的增强服务');
+      if (!capability.response?.zoteroNotes || !capability.response?.pdfReading) throw new Error('请先启动 0.3.2 或更新版本的增强服务');
       const { item, parent, path } = await selectedPDF(win);
       preparingKey = parent.libraryID + '/' + item.key;
       if (preparing.has(preparingKey)) return;
@@ -101,7 +101,7 @@ var BodyOnlyBridge = (() => {
       const filename = path.replace(/\\/g, '/').split('/').pop();
       const result = await post(base + '/api/reading/documents', { fileName: filename, fileContent: win.btoa(binary),
         zoteroTarget: { clientID: clientID(), libraryID: parent.libraryID, parentKey: parent.key, attachmentKey: item.key, title: parent.getField('title') } });
-      const started = await post(base + '/api/reading/jobs', { documentId: result.document.id, provider: provider || undefined, vision: false });
+      const started = await post(base + '/api/reading/jobs', { documentId: result.document.id, provider: provider || undefined });
       const prior = readingWindows.get(started.job.id);
       if (prior) prior.popup.close();
       readingWindows.set(started.job.id, view);
@@ -110,9 +110,20 @@ var BodyOnlyBridge = (() => {
     } catch (_) {
       // Never display an HTTP exception that may contain the API request body.
       if (view) { view.progress.setError(); view.progress.setText('阅读未能启动，请检查共享 API 和增强服务'); view.popup.startCloseTimer(12000); }
-      win.alert('无法开始深度阅读。请确认已配置自己的翻译 API，PDF 已有父条目且资料库可编辑，增强服务已启动，并且 PDF2zh 的服务器地址指向 0.3.1 或更新版本。');
+      win.alert('无法开始深度阅读。请确认自己的 API 支持 PDF 文件，PDF 已有父条目且资料库可编辑，增强服务已启动，并且 PDF2zh 的服务器地址指向 0.3.2 或更新版本。');
     }
     finally { if (acquired) preparing.delete(preparingKey); }
+  }
+  async function stopReading(win) {
+    try {
+      const base = baseURL(), { item } = await selectedPDF(win), identity = clientID();
+      const response = await Zotero.HTTP.request('GET', base + '/api/reading/jobs', { responseType: 'json', timeout: 10000 });
+      for (const job of response.response?.jobs || []) {
+        if (job.state !== 'running' || job.zoteroTarget?.clientID !== identity || job.zoteroTarget?.attachmentKey !== item.key) continue;
+        await post(base + '/api/reading/jobs/' + job.id + '/cancel', { clientID: identity });
+        readingWindows.get(job.id)?.progress.setText('已请求停止，当前响应结束后保存已有笔记');
+      }
+    } catch (_) { win.alert('未能停止续写，请确认增强服务仍在运行，并选中正在阅读的论文。'); }
   }
   function tools() {
     if (!noteTools) {
@@ -164,6 +175,7 @@ var BodyOnlyBridge = (() => {
           const response = await Zotero.HTTP.request('GET', base + '/api/reading/jobs/' + id, { responseType: 'json', timeout: 10000 });
           const job = response.response.job;
           if (['failed', 'interrupted'].includes(job.state)) finishWindow(id, job.message || '阅读未完成，请检查 API 和本地服务', true);
+          else if (job.state === 'cancelled') finishWindow(id, job.message || '阅读已停止');
           else if (job.noteState === 'saved') finishWindow(id, '阅读完成，子笔记已保存');
           else { view.progress.setProgress(job.progress || 0); view.progress.setText(job.message || '正在深度阅读'); }
         } catch (_) { view.progress.setText('等待本地服务恢复连接，已完成的结果会自动保存'); }
@@ -192,6 +204,9 @@ var BodyOnlyBridge = (() => {
       const node = win.document.createXULElement('menuitem');
       node.id = 'pdf2zh-body-only-reading'; node.setAttribute('label', '深度结构化阅读');
       node.addEventListener('command', () => openReading(win)); popup.appendChild(node); nodes.push(node);
+      const stop = win.document.createXULElement('menuitem'); stop.id = 'pdf2zh-body-only-stop-reading';
+      stop.setAttribute('label', '停止本篇后续续写'); stop.addEventListener('command', () => stopReading(win));
+      popup.appendChild(stop); nodes.push(stop);
       entries.set(win, { nodes, labels });
     }
   }

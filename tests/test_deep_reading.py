@@ -18,7 +18,7 @@ import toml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'payload'))
 from utils import shared_api
-from utils.deep_reading import register_reading, ReadingManager, CHUNK_PROMPT
+from utils.deep_reading import register_reading, ReadingManager, merge_continuation
 
 
 class StructuredReadingTests(unittest.TestCase):
@@ -67,7 +67,7 @@ class StructuredReadingTests(unittest.TestCase):
 
     def test_free_translation_cannot_start_reading_without_user_api(self):
         document = self.upload()
-        with patch.object(shared_api, 'chat') as call:
+        with patch.object(shared_api, 'read_pdf') as call:
             response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
         self.assertEqual(response.status_code, 400)
         self.assertIn('自己的 API', response.json['message'])
@@ -81,16 +81,16 @@ class StructuredReadingTests(unittest.TestCase):
         self.assertNotIn(self.key, repr(shared_api.resolve(self.root / 'config')))
         document = self.upload()
         calls = []
-        def answer(profile, messages, limit):
-            calls.append((profile, messages))
+        def answer(profile, pdf, filename, prompt, **options):
+            calls.append((profile, pdf, prompt, options))
             return '## 方法\n\n公式为 $x_i^2$。\n\n$$E=mc^2$$\n\n研究边界见 PDF 第 2 页。', {'prompt_tokens': 50, 'completion_tokens': 20, 'total_tokens': 70}, 'stop'
-        with patch.object(shared_api, 'chat', side_effect=answer):
+        with patch.object(shared_api, 'read_pdf', side_effect=answer):
             response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(response.json['job']['id'])
         self.assertEqual(job['state'], 'completed')
         self.assertEqual(calls[0][0].key, self.key)
-        self.assertIn('论文基本信息', calls[0][1][0]['content'])
-        self.assertIn('未核实', calls[0][1][0]['content'])
+        self.assertIn('论文基本信息', calls[0][2])
+        self.assertIn('未核实', calls[0][2])
         self.assertEqual(job['usage']['total_tokens'], 70)
         self.assertEqual(job['apiCalls'], 1)
         self.assertNotIn(self.key, job['markdown'])
@@ -119,52 +119,63 @@ class StructuredReadingTests(unittest.TestCase):
         self.assertNotIn(self.key, response.get_data(as_text=True))
         self.assertEqual(shared_api.resolve(self.root / 'config').model, 'already-in-zotero')
 
-    def test_long_paper_covers_the_final_page_instead_of_truncating_it(self):
+    def test_long_paper_is_sent_as_the_exact_original_pdf_in_one_request(self):
         self.configured()
-        self.manager.configure({'contextChars': 8000})
         document = self.upload(pages=8, dense=True)
+        original = self.manager.path(document['id'], '.pdf').read_bytes()
         seen = []
-        def answer(profile, messages, limit):
-            seen.append(messages)
-            text = '逐段证据，见 PDF 原始页码。' if CHUNK_PROMPT in messages[0]['content'] else '## 阅读笔记\n\n全文证据已经汇总。'
-            return text, {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15}, 'stop'
-        with patch.object(shared_api, 'chat', side_effect=answer):
+        def answer(profile, pdf, filename, prompt, **options):
+            seen.append(pdf)
+            self.assertNotIn('逐段证据', prompt)
+            with pymupdf.open(stream=pdf, filetype='pdf') as actual:
+                self.assertEqual(len(actual), 8)
+                self.assertIn('LAST_PAGE_8', actual[-1].get_text())
+            return '完整 PDF 阅读笔记。', {'prompt_tokens': 10, 'completion_tokens': 5}, 'stop'
+        with patch.object(shared_api, 'read_pdf', side_effect=answer):
+            result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(result.json['job']['id'])
+        self.assertEqual(seen, [original])
+        self.assertEqual(job['apiCalls'], 1)
+        self.assertEqual(job['inputMode'], 'pdf')
+        self.assertNotIn('chunks', job)
+        self.assertFalse(self.manager.path(document['id'], '.txt').exists())
+
+    def test_scanned_pdf_needs_no_local_ocr_or_page_selection(self):
+        self.configured()
+        with pymupdf.open() as pdf:
+            for _ in range(12):
+                pdf.new_page().draw_rect((30, 30, 200, 200))
+            original = pdf.tobytes()
+        with patch.object(pymupdf.Page, 'get_text', side_effect=AssertionError('Local extraction must not run')):
+            document = self.manager.add_document(original, 'scanned.pdf')
+        with patch.object(shared_api, 'read_pdf', return_value=('扫描 PDF 阅读。', {}, 'stop')) as api:
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(result.json['job']['id'])
         self.assertEqual(job['state'], 'completed')
-        self.assertGreater(job['chunks'], 1)
-        self.assertEqual(job['apiCalls'], job['chunks'] + 1)
-        self.assertIn('LAST_PAGE_8', '\n'.join(str(messages) for messages in seen[:-1]))
+        self.assertEqual(api.call_args.args[1], original)
+        self.assertEqual(document['pages'], 12)
 
-    def test_vision_is_explicit_and_images_are_sent_only_when_selected(self):
+    def test_provider_output_limit_is_continued_until_finished_without_a_fixed_round_cap(self):
         self.configured()
         document = self.upload()
-        images = []
-        def answer(profile, messages, limit):
-            images.extend(part for part in messages[-1]['content'] if part.get('type') == 'image_url')
-            return '## 图表\n\n已提供图像。', {'prompt_tokens': 1, 'completion_tokens': 1, 'total_tokens': 2}, 'stop'
-        with patch.object(shared_api, 'chat', side_effect=answer):
-            result = self.client.post('/api/reading/jobs', json={'documentId': document['id'], 'vision': True})
-            job = self.wait_job(result.json['job']['id'])
-        self.assertEqual(job['state'], 'completed')
-        self.assertEqual(len(images), 2)
-        self.assertTrue(images[0]['image_url']['url'].startswith('data:image/jpeg;base64,'))
-
-    def test_output_limit_is_visible_and_continuation_is_bounded(self):
-        self.configured()
-        document = self.upload()
-        with patch.object(shared_api, 'chat', return_value=('未完成内容。', {'prompt_tokens': 1, 'completion_tokens': 1}, 'length')) as call:
+        outputs = [(f'正文段落 {index} 的独立证据。', {'prompt_tokens': 1, 'completion_tokens': 2}, 'length') for index in range(4)]
+        outputs.append(('全部内容完成。', {'prompt_tokens': 1, 'completion_tokens': 2}, 'stop'))
+        with patch.object(shared_api, 'read_pdf', side_effect=outputs) as api:
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(result.json['job']['id'])
-        self.assertEqual(call.call_count, 2)
-        self.assertEqual(job['state'], 'partial')
-        self.assertIn('本稿尚未完成', job['markdown'])
+        self.assertEqual(api.call_count, 5)
+        self.assertEqual(job['state'], 'completed')
+        self.assertEqual(job['continuations'], 4)
+        self.assertEqual(job['usage']['completion_tokens'], 10)
+        for index in range(4):
+            self.assertIn(f'正文段落 {index}', job['markdown'])
+        self.assertIn('全部内容完成', job['markdown'])
 
     def test_own_pricing_and_recharge_ratio_are_used_without_inventing_a_rate(self):
         self.configured()
         self.manager.configure({'inputPrice': 1, 'outputPrice': 3, 'unitCny': 1})
         document = self.upload()
-        with patch.object(shared_api, 'chat', return_value=('报告完成。', {'prompt_tokens': 1000, 'completion_tokens': 2000, 'total_tokens': 3000}, 'stop')):
+        with patch.object(shared_api, 'read_pdf', return_value=('报告完成。', {'prompt_tokens': 1000, 'completion_tokens': 2000, 'total_tokens': 3000}, 'stop')):
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(result.json['job']['id'])
         self.assertAlmostEqual(job['estimatedCny'], .007)
@@ -173,7 +184,7 @@ class StructuredReadingTests(unittest.TestCase):
         self.configured()
         self.manager.configure({'inputPrice': 1, 'outputPrice': 3, 'unitCny': 1})
         document = self.upload()
-        with patch.object(shared_api, 'chat', return_value=('报告完成。', {}, 'stop')):
+        with patch.object(shared_api, 'read_pdf', return_value=('报告完成。', {}, 'stop')):
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(result.json['job']['id'])
         self.assertFalse(job['usageComplete'])
@@ -210,7 +221,7 @@ class StructuredReadingTests(unittest.TestCase):
     def test_completed_reading_queues_the_original_parent_and_survives_restart(self):
         self.configured()
         document, target = self.bound_document()
-        with patch.object(shared_api, 'chat', return_value=('## Evidence\n\n$x_i$ and $$E=mc^2$$', {}, 'stop')):
+        with patch.object(shared_api, 'read_pdf', return_value=('## Evidence\n\n$x_i$ and $$E=mc^2$$', {}, 'stop')):
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id'], 'zoteroTarget': {'parentKey': 'WRONGKEY'}})
             job = self.wait_job(result.json['job']['id'])
         self.assertEqual(job['zoteroTarget'], target)
@@ -228,7 +239,7 @@ class StructuredReadingTests(unittest.TestCase):
     def test_note_ack_rejects_other_clients_and_retries_without_more_model_calls(self):
         self.configured()
         document, target = self.bound_document()
-        with patch.object(shared_api, 'chat', return_value=('A complete report', {}, 'stop')) as model:
+        with patch.object(shared_api, 'read_pdf', return_value=('A complete report', {}, 'stop')) as model:
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(result.json['job']['id'])
             route = '/api/reading/jobs/' + job['id'] + '/zotero-note'
@@ -248,7 +259,7 @@ class StructuredReadingTests(unittest.TestCase):
     def test_unbound_web_upload_does_not_guess_a_zotero_parent(self):
         self.configured()
         document = self.upload()
-        with patch.object(shared_api, 'chat', return_value=('A complete report', {}, 'stop')):
+        with patch.object(shared_api, 'read_pdf', return_value=('A complete report', {}, 'stop')):
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(result.json['job']['id'])
         self.assertNotIn('noteState', job)
@@ -259,11 +270,11 @@ class StructuredReadingTests(unittest.TestCase):
         first, target = self.bound_document()
         second = self.manager.add_document(self.manager.path(first['id'], '.pdf').read_bytes(), 'same-paper.pdf', target)
         entered, release = threading.Event(), threading.Event()
-        def model(*args):
+        def model(*args, **kwargs):
             entered.set()
             release.wait(4)
             return 'Completed report', {}, 'stop'
-        with patch.object(shared_api, 'chat', side_effect=model) as call:
+        with patch.object(shared_api, 'read_pdf', side_effect=model) as call:
             initial = self.client.post('/api/reading/jobs', json={'documentId': first['id']}).json['job']
             self.assertTrue(entered.wait(2))
             try:
@@ -275,6 +286,98 @@ class StructuredReadingTests(unittest.TestCase):
                 if 'repeat' in locals():
                     self.wait_job(repeat['id'])
         self.assertEqual(call.call_count, 1)
+
+
+    def test_old_token_and_chunk_settings_do_not_limit_the_new_pdf_request(self):
+        self.configured()
+        (self.root / 'config/reading.json').write_text(json.dumps({'maxOutputTokens': 1024, 'contextChars': 8000}), encoding='utf-8')
+        options = self.client.get('/api/reading/config').json['options']
+        self.assertNotIn('maxOutputTokens', options)
+        self.assertNotIn('contextChars', options)
+        self.assertEqual(options['requestTimeout'], 0)
+        document = self.upload()
+        with patch.object(shared_api, 'read_pdf', return_value=('Complete.', {}, 'stop')) as api:
+            response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            self.wait_job(response.json['job']['id'])
+        self.assertEqual(api.call_args.kwargs['timeout'], None)
+        self.assertNotIn('max_tokens', api.call_args.kwargs)
+
+    def test_continuation_failure_keeps_existing_output_and_queues_a_partial_child_note(self):
+        self.configured()
+        document, target = self.bound_document()
+        with patch.object(shared_api, 'read_pdf', side_effect=[('已经生成的方法和公式。', {}, 'length'), ValueError('网络等待失败')]):
+            response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(response.json['job']['id'])
+        self.assertEqual(job['state'], 'partial')
+        self.assertEqual(job['noteState'], 'pending')
+        self.assertIn('已经生成的方法和公式', job['markdown'])
+        self.assertIn('本稿尚未完成', job['markdown'])
+        self.assertFalse(job['usageComplete'])
+        self.assertIsNone(job['estimatedCny'])
+        self.assertEqual(self.manager.pending_notes(target['clientID'])[0]['id'], job['id'])
+
+    def test_repeated_continuation_stops_instead_of_creating_an_infinite_paid_loop(self):
+        self.configured()
+        document = self.upload()
+        with patch.object(shared_api, 'read_pdf', return_value=('完全重复的内容。', {}, 'length')) as api:
+            response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(response.json['job']['id'])
+        self.assertEqual(api.call_count, 2)
+        self.assertEqual(job['state'], 'partial')
+        self.assertIn('重复', job['message'])
+
+    def test_user_can_stop_future_continuations_without_losing_current_output(self):
+        self.configured()
+        document, target = self.bound_document()
+        entered, release = threading.Event(), threading.Event()
+        def waiting(*args, **kwargs):
+            entered.set()
+            release.wait(4)
+            return '这部分证据已经生成。', {}, 'length'
+        with patch.object(shared_api, 'read_pdf', side_effect=waiting) as api:
+            response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job_id = response.json['job']['id']
+            try:
+                self.assertTrue(entered.wait(2))
+                denied = self.client.post('/api/reading/jobs/' + job_id + '/cancel', json={'clientID': 'b' * 32})
+                self.assertEqual(denied.status_code, 400)
+                cancelled = self.client.post('/api/reading/jobs/' + job_id + '/cancel', json={'clientID': target['clientID']})
+                self.assertTrue(cancelled.json['job']['cancelRequested'])
+            finally:
+                release.set()
+                job = self.wait_job(job_id)
+        self.assertEqual(api.call_count, 1)
+        self.assertEqual(job['state'], 'partial')
+        self.assertIn('这部分证据', job['markdown'])
+
+    def test_continuation_preserves_cut_latex_and_removes_boundary_overlap(self):
+        self.assertEqual(merge_continuation('Result $$E=', 'mc^2$$'), 'Result $$E=mc^2$$')
+        shared = 'Boundary evidence must appear only once.'
+        self.assertEqual(merge_continuation('Prior. ' + shared, shared + ' Next.'), 'Prior. ' + shared + ' Next.')
+
+    def test_restart_keeps_checkpoint_output_and_queues_it_as_an_unfinished_note(self):
+        document, target = self.bound_document()
+        job_id = 'e' * 32
+        self.manager.path(job_id, '.job.json').write_text(json.dumps({
+            'id': job_id, 'documentId': document['id'], 'state': 'running',
+            'markdown': '已完成的正文与公式。', 'zoteroTarget': target, 'noteState': 'waiting'}), encoding='utf-8')
+        recovered = ReadingManager(self.root)
+        job = recovered.snapshot(job_id)
+        self.assertEqual(job['state'], 'partial')
+        self.assertEqual(job['noteState'], 'pending')
+        self.assertIn('已完成的正文与公式', job['markdown'])
+        self.assertIn('本稿尚未完成', job['markdown'])
+        self.assertEqual(len(recovered.pending_notes(target['clientID'])), 1)
+
+    def test_empty_output_at_provider_limit_is_continued_instead_of_discarded(self):
+        self.configured()
+        document = self.upload()
+        with patch.object(shared_api, 'read_pdf', side_effect=[('', {}, 'length'), ('最终完整笔记。', {}, 'stop')]) as api:
+            response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(response.json['job']['id'])
+        self.assertEqual(api.call_count, 2)
+        self.assertEqual(job['state'], 'completed')
+        self.assertIn('最终完整笔记', job['markdown'])
 
 
 if __name__ == '__main__':

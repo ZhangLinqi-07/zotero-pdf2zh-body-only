@@ -11,7 +11,11 @@
   }
   const post = data => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   function status(text, kind = '') { $('readingStatus').textContent = text; $('readingStatus').className = 'reading-status ' + kind; }
-  function startState() { $('startReading').disabled = !currentDocument || !configured || busy; }
+  function startState() {
+    $('startReading').disabled = !currentDocument || !configured || busy;
+    $('cancelReading').hidden = !busy;
+    $('cancelReading').disabled = !!currentJob?.cancelRequested;
+  }
   function option(select, label, value) { const item = document.createElement('option'); item.textContent = label; item.value = value; select.append(item); }
   async function loadLayout() {
     try {
@@ -42,7 +46,7 @@
     $('sharedApiStatus').textContent = configured
       ? '正在复用翻译 API，深度阅读无需再次填写密钥。'
       : '免费翻译仍可使用。深度阅读需要你配置自己的 API。';
-    for (const name of ['contextChars', 'maxOutputTokens', 'inputPrice', 'outputPrice', 'unitCny']) {
+    for (const name of ['pdfProtocol', 'requestTimeout', 'inputPrice', 'outputPrice', 'unitCny']) {
       $(name).value = data.options[name] ?? '';
     }
     const compatible = data.profiles.find(p => p.id === 'openaicompatible');
@@ -51,7 +55,7 @@
     startState(); describeDocument();
   }
   async function saveConfig() {
-    const data = { contextChars: Number($('contextChars').value), maxOutputTokens: Number($('maxOutputTokens').value) };
+    const data = { pdfProtocol: $('pdfProtocol').value, requestTimeout: Number($('requestTimeout').value) };
     for (const name of ['inputPrice', 'outputPrice', 'unitCny']) data[name] = $(name).value.trim() === '' ? null : Number($(name).value);
     const endpoint = $('sharedEndpoint').value.trim(), model = $('sharedModel').value.trim(), key = $('sharedKey').value.trim();
     if (endpoint || model || key) Object.assign(data, { endpoint, model, apiKey: key });
@@ -62,12 +66,8 @@
     } catch (error) { status(error.message, 'error'); }
   }
   function describeDocument() {
-    if (!currentDocument) { $('readingDocumentInfo').textContent = '选择一篇 PDF 后，会显示阅读范围和预计调用次数。'; return; }
-    const maximum = Number($('contextChars').value) || 60000;
-    const chunks = Math.ceil(currentDocument.characters / maximum);
-    const calls = chunks === 1 ? 1 : chunks + 1;
-    const images = $('readingVision').checked ? `附带最多 8 个重点页面图像，需要模型支持图片。` : '本次仅发送文字，图表按文字和图注核对。';
-    $('readingDocumentInfo').textContent = `${currentDocument.filename}，共 ${currentDocument.pages} 页，提取 ${currentDocument.characters.toLocaleString()} 个字符。预计 ${calls} 次 API 请求，输出过长时可能再续写 1 次。${images}${currentDocument.hasText ? '' : '这份 PDF 缺少文本层，请先做 OCR，或对不超过 8 页的文档启用页面图像。'}`;
+    if (!currentDocument) { $('readingDocumentInfo').textContent = '选择 PDF 后，原始文件将完整提交给支持 PDF 的 API。'; return; }
+    $('readingDocumentInfo').textContent = `${currentDocument.filename}，共 ${currentDocument.pages} 页。完整 PDF 与阅读提示词一起提交，由 API 直接理解文字和图表。输出长度与思考强度采用接口默认设置，达到输出上限后自动续写。`;
   }
   function selectDocument(documentInfo) {
     currentDocument = documentInfo; describeDocument(); startState();
@@ -77,7 +77,7 @@
   async function upload(file) {
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) { status('请选择不超过 50 MB 的 PDF', 'error'); return; }
-    status('正在本机提取论文内容，此步骤不调用 API');
+    status('正在本机准备完整 PDF，此步骤不调用 API');
     try { const form = new FormData(); form.append('file', file); const result = await api('/api/reading/documents', { method: 'POST', body: form }); selectDocument(result.document); status('论文已准备好，点击开始深度阅读后才调用所选 API。'); }
     catch (error) { status(error.message, 'error'); }
   }
@@ -118,11 +118,12 @@
     status(job.message, job.state === 'failed' || job.state === 'partial' ? 'error' : job.state === 'completed' ? 'success' : '');
     const usage = job.usage || {};
     $('readingUsage').textContent = `模型 ${job.model} · 请求 ${job.apiCalls || 0} 次 · 输入 token ${usage.prompt_tokens || 0} · 输出 token ${usage.completion_tokens || 0}` + (job.estimatedCny != null ? ` · 估算 ${job.estimatedCny.toFixed(4)} 元` : ' · 单价未设置时不估算金额');
+    if (usage.reasoning_tokens) $('readingUsage').textContent += ` · 输出含思考 token ${usage.reasoning_tokens}`;
     if (job.usageComplete === false) $('readingUsage').textContent = `模型 ${job.model} · 请求 ${job.apiCalls || 0} 次 · 服务商未返回完整 token 统计，费用请查看账单`;
     $('downloadReading').hidden = !job.markdown;
     $('exportReadingHtml').hidden = !job.markdown;
     const target = job.zoteroTarget;
-    $('readingNoteStatus').textContent = !target ? '当前阅读未关联 Zotero 条目，可下载笔记。下次从 Zotero 右键打开论文即可自动归档。' : job.noteState === 'saved' ? `已保存为 Zotero 子笔记，归属 ${target.title || '所选论文'}。` : job.noteState === 'error' ? job.noteError : job.noteState === 'pending' ? `阅读已完成，等待 Zotero 插件保存子笔记。请保持 Zotero 开启，归属 ${target.title || '所选论文'}。` : `阅读完成后会自动保存到 ${target.title || '所选论文'} 的子笔记中。`;
+    $('readingNoteStatus').textContent = !target ? '当前阅读未关联 Zotero 条目，可下载笔记。下次从 Zotero 右键打开论文即可自动归档。' : ['failed', 'cancelled', 'interrupted'].includes(job.state) && !job.markdown ? '本次阅读未生成子笔记，请查看任务状态。' : job.noteState === 'saved' ? `已保存为 Zotero 子笔记，归属 ${target.title || '所选论文'}。` : job.noteState === 'error' ? job.noteError : job.noteState === 'pending' ? `阅读已完成，等待 Zotero 插件保存子笔记。请保持 Zotero 开启，归属 ${target.title || '所选论文'}。` : `阅读完成后会自动保存到 ${target.title || '所选论文'} 的子笔记中。`;
     if (job.markdown) { $('downloadReading').href = `/api/reading/jobs/${job.id}/download`; if (changed) await renderReport(job.markdown); }
     if (busy || ['pending', 'error'].includes(job.noteState)) polling = setTimeout(() => pollJob(job.id), busy ? 1200 : 3000);
     else await loadHistory();
@@ -135,8 +136,15 @@
     if (!currentDocument || busy) return;
     busy = true; startState(); $('readingReport').hidden = true;
     clearTimeout(polling);
-    try { const result = await api('/api/reading/jobs', post({ documentId: currentDocument.id, provider: $('readingProvider').value, vision: $('readingVision').checked })); await showJob(result.job); }
+    try { const result = await api('/api/reading/jobs', post({ documentId: currentDocument.id, provider: $('readingProvider').value })); await showJob(result.job); }
     catch (error) { busy = false; startState(); status(error.message, 'error'); }
+  }
+  async function cancelReading() {
+    if (!currentJob || !busy) return;
+    try {
+      const result = await api(`/api/reading/jobs/${currentJob.id}/cancel`, post({ clientID: currentJob.zoteroTarget?.clientID }));
+      clearTimeout(polling); await showJob(result.job);
+    } catch (error) { status(error.message, 'error'); }
   }
   async function loadHistory() {
     const data = await api('/api/reading/jobs'), select = $('readingHistory'); select.replaceChildren(); option(select, '查看已有阅读记录', '');
@@ -154,8 +162,8 @@
     $('readingFile').addEventListener('change', event => upload(event.target.files[0]));
     $('readingExisting').addEventListener('change', event => readExisting(event.target.value));
     $('readingHistory').addEventListener('change', event => { if (event.target.value) { clearTimeout(polling); pollJob(event.target.value); } });
-    $('startReading').addEventListener('click', startReading); $('readingVision').addEventListener('change', describeDocument);
-    $('contextChars').addEventListener('input', describeDocument); $('exportReadingHtml').addEventListener('click', exportHtml);
+    $('startReading').addEventListener('click', startReading); $('cancelReading').addEventListener('click', cancelReading);
+    $('exportReadingHtml').addEventListener('click', exportHtml);
     await Promise.allSettled([loadLayout(), loadConfig(), loadExisting(), loadHistory()]);
     const documentId = new URL(location.href).searchParams.get('reading');
     const jobId = new URL(location.href).searchParams.get('readingJob');

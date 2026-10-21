@@ -14,6 +14,8 @@ v0.3.0 加入深度阅读、共享翻译 API、公式保护、双栏整页对照
 
 v0.3.1 增加阅读结果自动保存为 Zotero 子笔记、原生 LaTeX 公式与归档重试，并将右键菜单显示名改为 Kinbo。新增 plugin/reading_note.js，增强 XPI 内包含相应源码及 Marked、DOMPurify 与许可证。
 
+v0.3.2 改为完整 PDF 直接阅读，移除本地分段摘要与生成预算，增加多协议 PDF 请求、原生多轮续写、检查点保存与停止后续续写。
+
 prompts/deep_reading_zh.txt 是维护者提供的阅读模板。笔记渲染使用 Marked 18.1.1、DOMPurify 3.4.17 和 MathJax 3.2.2，原许可证与版本校验清单保存在 payload/web/vendor。Marked 采用 MIT，DOMPurify 提供 Apache-2.0 与 MPL-2.0，MathJax 采用 Apache-2.0，其作者声明继续适用。
 
 pdf2zh_next 与 BabelDOC 是独立安装的依赖，其源代码分别可在 https://github.com/PDFMathTranslate/PDFMathTranslate-next 和 https://github.com/funstory-ai/BabelDOC 获取。本包不包含这些依赖的模型权重或运行环境。

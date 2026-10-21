@@ -387,15 +387,15 @@
               <label class="reading-field">API 密钥<input id="sharedKey" type="password" placeholder="已配置时留空即可保留" autocomplete="new-password"></label>
             </details>
             <details class="reading-advanced">
-              <summary>阅读长度与费用估算</summary>
+              <summary>PDF 接口与费用估算</summary>
               <div class="reading-grid">
-                <label class="reading-field">单段最多读取的字符<input id="contextChars" type="number" min="8000" max="240000" value="60000"></label>
-                <label class="reading-field">每次最大输出 token<input id="maxOutputTokens" type="number" min="1024" max="32000" value="8192"></label>
+                <label class="reading-field">PDF 接口格式<select id="pdfProtocol"><option value="auto">自动选择</option><option value="gemini">Gemini 原生 PDF</option><option value="chat">OpenAI 兼容 PDF</option><option value="responses">Responses PDF</option></select></label>
+                <label class="reading-field">网络等待超时秒数，0 表示不设超时<input id="requestTimeout" type="number" min="0" step="1" value="0"></label>
                 <label class="reading-field">每百万输入 token 的美元额度<input id="inputPrice" type="number" min="0" step="any" placeholder="可留空"></label>
                 <label class="reading-field">每百万输出 token 的美元额度<input id="outputPrice" type="number" min="0" step="any" placeholder="可留空"></label>
                 <label class="reading-field">每美元额度实付人民币<input id="unitCny" type="number" min="0" step="any" placeholder="按自己的充值比例填写"></label>
               </div>
-              <p>长论文会先分段提取证据，再写完整笔记。金额按填写单价估算，实际扣费以服务商账单为准。</p>
+              <p>完整 PDF 直接交给 API，不在本地切分或摘要。插件不设置思考强度或输出 token 上限，达到接口输出上限后自动续写。Gemini 模型自动使用原生 PDF 接口，其他模型使用兼容 PDF 格式。金额按填写单价估算，实际扣费以服务商账单为准。</p>
             </details>
             <button class="reading-button secondary" id="saveSharedApi">保存共享配置与阅读选项</button>
           </section>
@@ -403,10 +403,10 @@
             <h2>选择论文</h2>
             <label class="reading-field">本地 PDF<input id="readingFile" type="file" accept="application/pdf,.pdf"></label>
             <label class="reading-field">已有 PDF<select id="readingExisting"><option value="">正在读取已有 PDF</option></select></label>
-            <label class="reading-inline reading-hint"><input id="readingVision" type="checkbox">附带重点页图像，帮助识别公式和图表</label>
-            <div id="readingDocumentInfo" class="reading-summary">选择一篇 PDF 后，会显示阅读范围和预计调用次数。</div>
+            <div id="readingDocumentInfo" class="reading-summary">选择 PDF 后，原始文件将完整提交给支持 PDF 的 API。</div>
             <p>使用你提供的论文深度阅读模板，覆盖方法、公式、实验、图表、局限和未来方向。未启用联网检索，外部发表信息无法确认时会标为未核实。</p>
             <button class="reading-button" id="startReading" disabled>开始深度结构化阅读</button>
+            <button class="reading-button secondary" id="cancelReading" hidden>停止后续续写</button>
             <div id="readingStatus" class="reading-status" role="status" aria-live="polite"></div>
             <progress id="readingProgress" class="reading-progress" max="100" value="0" hidden></progress>
             <p id="readingUsage"></p>

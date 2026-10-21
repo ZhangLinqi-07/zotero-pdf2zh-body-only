@@ -50,7 +50,7 @@ def main():
                         version = json.load(check).get('version')
                 except (OSError, ValueError):
                     version = None
-                if version == '0.3.1':
+                if version == '0.3.2':
                     print(f"Body-only server is already available on port {args.port}.")
                     return
                 raise SystemExit('An older body-only service uses this port. Close its window, or choose --port 8892.')

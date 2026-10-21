@@ -21,7 +21,7 @@ def build(source, destination, server_url=None):
     with zipfile.ZipFile(source) as archive:
         files = {name: archive.read(name) for name in archive.namelist() if not name.endswith('/')}
     metadata = json.loads(files['manifest.json'])
-    metadata.update(name='Zotero PDF2zh Body Only', version='4.1.7.5',
+    metadata.update(name='Zotero PDF2zh Body Only', version='4.1.7.6',
                     description='PDF translation, shared-API structured reading, formula protection and full-page bilingual layout.',
                     homepage_url='https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only')
     metadata['applications']['zotero'].pop('update_url', None)
