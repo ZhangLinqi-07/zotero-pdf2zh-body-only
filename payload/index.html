@@ -311,6 +311,14 @@
         .tab-btn { padding: 12px 14px; font-size: 13px; }
       }
     </style>
+    <link rel="stylesheet" href="/body-only-assets/enhancements.css">
+    <script>
+      window.MathJax = { startup: { typeset: false }, tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']], packages: ['base', 'ams', 'newcommand', 'noundefined'], maxMacros: 1000, maxBuffer: 50000 }, svg: { fontCache: 'local' }, options: { enableMenu: false } };
+    </script>
+    <script defer src="/body-only-assets/vendor/marked.js"></script>
+    <script defer src="/body-only-assets/vendor/purify.js"></script>
+    <script defer src="/body-only-assets/vendor/mathjax.js"></script>
+    <script defer src="/body-only-assets/reading.js"></script>
   </head>
   <body>
     <div class="connection-status" id="connectionStatus">连接中...</div>
@@ -342,6 +350,7 @@
         <button class="tab-btn active" data-tab="help">帮助与信息</button>
         <button class="tab-btn" data-tab="tasks">翻译任务 <span class="tab-badge" id="tabTaskBadge" style="display:none">0</span></button>
         <button class="tab-btn" data-tab="history">翻译历史</button>
+        <button class="tab-btn" data-tab="reading">深度结构化阅读</button>
       </div>
 
       <!-- ==================== Tab: 帮助与信息 ==================== -->
@@ -352,6 +361,64 @@
         <p id="sectionSkipLastPlan"></p>
         <p>增强功能源码与许可证见 <a href="https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only" target="_blank" rel="noopener">GitHub · AGPL-3.0</a></p>
       </section>
+      <section class="enhancement-card" aria-labelledby="layoutHeading">
+        <h2 id="layoutHeading">公式与双栏排版</h2>
+        <div class="enhancement-options">
+          <label><input id="preserveColumns" type="checkbox" checked>保留双栏，原文与译文整页并排</label>
+          <label for="mathMode">公式保护
+            <select id="mathMode"><option value="auto">自动保护</option><option value="conservative">公式优先</option><option value="off">普通排版</option></select>
+          </label>
+        </div>
+        <p id="layoutStatus" role="status">正在读取排版选项</p>
+        <p>保留双栏时，双语对照与裁剪对照都会生成完整页面，左边保留整页原文，右边保留整页译文。数学、金融和经济论文可选择公式优先，较多公式的段落会保留原文与位置。</p>
+      </section>
+      <div class="tab-content" id="tab-reading">
+        <div class="reading-grid">
+          <section class="enhancement-card">
+            <h2>复用翻译 API</h2>
+            <p id="sharedApiStatus">正在读取翻译 API 配置</p>
+            <label class="reading-field">本次阅读使用的 API<select id="readingProvider"></select></label>
+            <div class="reading-inline"><button class="reading-button secondary" id="refreshSharedApi">刷新已有配置</button></div>
+            <details class="reading-advanced" id="apiConfiguration">
+              <summary>配置共享 API</summary>
+              <p>这里保存到翻译使用的同一份 OpenAI 兼容 API 配置。若已在 Zotero 使用过 API 翻译，可以直接复用，无需再次填写密钥。</p>
+              <label class="reading-field">API 地址<input id="sharedEndpoint" type="url" placeholder="https://你的服务地址/v1" autocomplete="off"></label>
+              <label class="reading-field">完整模型名<input id="sharedModel" placeholder="后台显示的完整模型名称" autocomplete="off"></label>
+              <label class="reading-field">API 密钥<input id="sharedKey" type="password" placeholder="已配置时留空即可保留" autocomplete="new-password"></label>
+            </details>
+            <details class="reading-advanced">
+              <summary>阅读长度与费用估算</summary>
+              <div class="reading-grid">
+                <label class="reading-field">单段最多读取的字符<input id="contextChars" type="number" min="8000" max="240000" value="60000"></label>
+                <label class="reading-field">每次最大输出 token<input id="maxOutputTokens" type="number" min="1024" max="32000" value="8192"></label>
+                <label class="reading-field">每百万输入 token 的美元额度<input id="inputPrice" type="number" min="0" step="any" placeholder="可留空"></label>
+                <label class="reading-field">每百万输出 token 的美元额度<input id="outputPrice" type="number" min="0" step="any" placeholder="可留空"></label>
+                <label class="reading-field">每美元额度实付人民币<input id="unitCny" type="number" min="0" step="any" placeholder="按自己的充值比例填写"></label>
+              </div>
+              <p>长论文会先分段提取证据，再写完整笔记。金额按填写单价估算，实际扣费以服务商账单为准。</p>
+            </details>
+            <button class="reading-button secondary" id="saveSharedApi">保存共享配置与阅读选项</button>
+          </section>
+          <section class="enhancement-card">
+            <h2>选择论文</h2>
+            <label class="reading-field">本地 PDF<input id="readingFile" type="file" accept="application/pdf,.pdf"></label>
+            <label class="reading-field">已有 PDF<select id="readingExisting"><option value="">正在读取已有 PDF</option></select></label>
+            <label class="reading-inline reading-hint"><input id="readingVision" type="checkbox">附带重点页图像，帮助识别公式和图表</label>
+            <div id="readingDocumentInfo" class="reading-summary">选择一篇 PDF 后，会显示阅读范围和预计调用次数。</div>
+            <p>使用你提供的论文深度阅读模板，覆盖方法、公式、实验、图表、局限和未来方向。未启用联网检索，外部发表信息无法确认时会标为未核实。</p>
+            <button class="reading-button" id="startReading" disabled>开始深度结构化阅读</button>
+            <div id="readingStatus" class="reading-status" role="status" aria-live="polite"></div>
+            <progress id="readingProgress" class="reading-progress" max="100" value="0" hidden></progress>
+            <p id="readingUsage"></p>
+          </section>
+        </div>
+        <div class="reading-actions">
+          <label class="reading-field" style="flex:1;min-width:240px;margin:0"><select id="readingHistory"><option value="">查看已有阅读记录</option></select></label>
+          <a class="reading-button secondary" id="downloadReading" hidden>下载 Markdown 笔记</a>
+          <button class="reading-button secondary" id="exportReadingHtml" hidden>导出离线 HTML</button>
+        </div>
+        <article id="readingReport" class="reading-report" hidden></article>
+      </div>
       <div class="tab-content active" id="tab-help">
         <div class="notice-banner">
           <strong>欢迎访问项目主页：</strong>
@@ -476,6 +543,7 @@
     </div>
 
     <script>
+      function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
       async function loadSectionSkipSettings() {
         const toggle = document.getElementById('sectionSkipEnabled');
         const status = document.getElementById('sectionSkipStatus');
@@ -631,7 +699,7 @@
           let val = v;
           if (Array.isArray(v)) val = v.join(', ') || '-';
           if (typeof v === 'boolean') val = v ? '是' : '否';
-          return `<div class="config-row"><span class="config-key">${label}</span><span class="config-val">${val}</span></div>`;
+          return `<div class="config-row"><span class="config-key">${escapeHtml(label)}</span><span class="config-val">${escapeHtml(val)}</span></div>`;
         }).join('');
       }
 
@@ -756,7 +824,7 @@
               else { elapsed = formatDuration(Math.floor(((task.endTime?new Date(task.endTime):new Date()) - new Date(task.startTime)) / 1000)); }
             }
             let msgHtml = "";
-            if (task.message) { let mc = "task-message"; if(n.state==="failed") mc+=" error"; else if(n.state==="success") mc+=" success"; msgHtml = `<div class="${mc}" style="display:block">${task.message}</div>`; }
+            if (task.message) { let mc = "task-message"; if(n.state==="failed") mc+=" error"; else if(n.state==="success") mc+=" success"; msgHtml = `<div class="${mc}" style="display:block">${escapeHtml(task.message)}</div>`; }
             // 配置摘要
             let cfgHtml = '';
             if (task.config) {
@@ -764,14 +832,14 @@
               cfgHtml = `<div class="task-config-toggle ${isExpanded?'expanded':''}" onclick="toggleTaskConfig(this)">${isExpanded ? '收起配置 ▲' : '查看翻译配置 ▼'}</div><div class="task-config-detail ${isExpanded?'show':''} config-display">${renderConfigHtml(task.config)}</div>`;
             }
             return `<div class="${cardClass}" id="task-${taskId}">
-              <div class="task-header"><div class="task-filename">${task.fileName||"未知文件"}</div><div class="${badgeClass}">${badgeText}</div></div>
+              <div class="task-header"><div class="task-filename">${escapeHtml(task.fileName||"未知文件")}</div><div class="${badgeClass}">${escapeHtml(badgeText)}</div></div>
               <div class="task-progress-bar"><div class="task-progress-fill" style="width:${progress}%"></div></div>
               <div class="task-info">
                 <div class="task-info-item"><div class="task-info-label">进度</div><div class="task-info-value">${progress}%</div></div>
                 <div class="task-info-item"><div class="task-info-label">开始</div><div class="task-info-value">${formatTime(task.startTime)}</div></div>
-                <div class="task-info-item"><div class="task-info-label">引擎</div><div class="task-info-value">${task.engine||"-"}</div></div>
-                <div class="task-info-item"><div class="task-info-label">服务</div><div class="task-info-value">${task.service||"-"}</div></div>
-                <div class="task-info-item"><div class="task-info-label">模型</div><div class="task-info-value" title="${task.modelName||'-'}">${task.modelName||'默认模型'}</div></div>
+                <div class="task-info-item"><div class="task-info-label">引擎</div><div class="task-info-value">${escapeHtml(task.engine||"-")}</div></div>
+                <div class="task-info-item"><div class="task-info-label">服务</div><div class="task-info-value">${escapeHtml(task.service||"-")}</div></div>
+                <div class="task-info-item"><div class="task-info-label">模型</div><div class="task-info-value" title="${escapeHtml(task.modelName||'-')}">${escapeHtml(task.modelName||'默认模型')}</div></div>
                 <div class="task-info-item"><div class="task-info-label">耗时</div><div class="task-info-value">${elapsed}</div></div>
               </div>
               ${msgHtml}${cfgHtml}
@@ -833,19 +901,19 @@
             filesHtml = `<div class="history-files" onclick="event.stopPropagation()">${item.fileList.map(file => {
               const url = `/translatedFile/${encodeURIComponent(file)}`, ft = getFileTypeLabel(file);
               const tag = ft.code ? `<span class="file-type-tag"><span class="ft-code">${ft.code}</span><span class="ft-desc">${ft.desc}</span></span>` : `<span class="file-type-tag"><span class="ft-desc">${ft.desc}</span></span>`;
-              return `<div class="file-action-group">${tag}<a href="${url}" class="file-btn download" download title="下载 ${ft.code||file}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>下载</a><button onclick="openPdfPreview('${url}?preview=true','${file}')" class="file-btn preview" title="预览 ${ft.code||file}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>预览</button></div>`;
+              return `<div class="file-action-group">${tag}<a href="${url}" class="file-btn download" download title="下载 ${escapeHtml(ft.code||file)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>下载</a><button data-url="${url}?preview=true" data-filename="${encodeURIComponent(file).replace(/'/g, '%27')}" onclick="openPdfPreview(this.dataset.url, decodeURIComponent(this.dataset.filename))" class="file-btn preview" title="预览 ${escapeHtml(ft.code||file)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>预览</button></div>`;
             }).join("")}</div>`;
           }
-          let errorHtml = !isSuccess && item.error ? `<div class="error-message"><strong>错误信息:</strong> ${item.error}</div>` : "";
+          let errorHtml = !isSuccess && item.error ? `<div class="error-message"><strong>错误信息:</strong> ${escapeHtml(item.error)}</div>` : "";
           // 配置摘要
           let cfgSection = "";
           if (item.config) {
             cfgSection = `<div style="margin-top:10px"><strong style="font-size:13px;color:#333">翻译配置:</strong><div class="config-display" style="margin-top:6px">${renderConfigHtml(item.config)}</div></div>`;
           }
           return `<div class="history-item ${sc}" onclick="toggleHistoryItem(this)">
-            <div class="history-summary"><div><div class="history-filename">${item.fileName||"未知文件"}</div><div class="history-time">${timeStr}</div></div><div style="display:flex;align-items:center"><span class="status-dot ${sc}"></span><span class="status-text">${st}</span></div></div>
+            <div class="history-summary"><div><div class="history-filename">${escapeHtml(item.fileName||"未知文件")}</div><div class="history-time">${timeStr}</div></div><div style="display:flex;align-items:center"><span class="status-dot ${sc}"></span><span class="status-text">${escapeHtml(st)}</span></div></div>
             <div class="history-details">
-              <div class="meta-grid"><div><strong>引擎:</strong> ${item.engine||"-"}</div><div><strong>服务:</strong> ${item.service||"-"}</div><div><strong>模型:</strong> ${item.modelName||'默认模型'}</div><div><strong>耗时:</strong> ${duration}</div><div><strong>结束:</strong> ${formatTime(item.endTime)}</div></div>
+              <div class="meta-grid"><div><strong>引擎:</strong> ${escapeHtml(item.engine||"-")}</div><div><strong>服务:</strong> ${escapeHtml(item.service||"-")}</div><div><strong>模型:</strong> ${escapeHtml(item.modelName||'默认模型')}</div><div><strong>耗时:</strong> ${duration}</div><div><strong>结束:</strong> ${formatTime(item.endTime)}</div></div>
               ${cfgSection}${filesHtml}${errorHtml}
             </div>
           </div>`;

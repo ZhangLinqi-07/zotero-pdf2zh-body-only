@@ -190,6 +190,9 @@ def main():
         target, server, plugin = prepare_sources(args.install_dir, args.server_archive, args.plugin_xpi)
         python = prepare_environments(target, args.uv, args.index_url, args.defer_engine)
         result = install.install(server, server_python=python)
+        from build_plugin import build
+        plugin = target / 'zotero-pdf2zh-body-only.xpi'
+        build(target / 'zotero-pdf-2-zh-v4.1.7.xpi', plugin)
         if os.name == "nt":
             # The wrapper remains usable when Python is absent from the user's PATH.
             # chcp also makes UTF-8 installation paths work in cmd.exe.

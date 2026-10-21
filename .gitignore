@@ -25,3 +25,8 @@ app/
 runtime/
 zotero-pdf2zh-next-venv/
 .body-only-bootstrap.json
+reading/
+layout_plans/
+layout.json
+reading.json
+*.xpi

@@ -4,7 +4,7 @@
 # guaguastandup
 # zotero-pdf2zh
 import os
-from flask import Flask, request, jsonify, send_file, Response
+from flask import Flask, request, jsonify, send_file, send_from_directory, Response
 from werkzeug.serving import WSGIRequestHandler
 import base64
 import subprocess
@@ -39,6 +39,9 @@ from utils.task_manager import task_manager
 # 导入带进度解析的命令执行器
 from utils.execute import execute_with_progress
 from utils.section_skip import read_settings as read_section_settings, save_settings as save_section_settings, prepare_translation_command
+from utils.layout_preservation import read_layout_settings, save_layout_settings, prepare_layout_command
+from utils.deep_reading import register_reading
+from utils.shared_api import _WRITE_LOCK as shared_api_lock
 
 _VALUE_ERROR_RE = re.compile(r'(?m)^ValueError:\s*(?P<msg>.+)$')
 
@@ -139,6 +142,10 @@ class PDFTranslator:
         # 新增：配置信息 API - 供 index.html 前端显示当前服务配置
         self.app.add_url_rule('/api/config', 'config', self.get_config)
         self.app.add_url_rule('/api/section-settings', 'section_settings', self.section_settings, methods=['GET', 'POST'])
+        self.app.add_url_rule('/api/layout-settings', 'layout_settings', self.layout_settings, methods=['GET', 'POST'])
+        self.app.add_url_rule('/api/capabilities', 'capabilities', lambda: jsonify(status='success', version='0.3.0', deepReading=True, sharedAPI=True, fullPageCompare=True))
+        self.app.add_url_rule('/body-only-assets/<path:filename>', 'body_only_assets', lambda filename: send_from_directory(os.path.join(root_path, 'web'), filename))
+        self.reading = register_reading(self.app, root_path)
         # 新增：favicon 路由
         self.app.add_url_rule('/favicon.svg', 'favicon', self.favicon)
         # 新增：提示音音频路由
@@ -155,6 +162,24 @@ class PDFTranslator:
             'message': 'PDF2zh Server is running',
             'outputDir': os.path.abspath(output_folder),
         }), 200
+
+    def layout_settings(self):
+        try:
+            settings = read_layout_settings(config_folder)
+            if request.method == 'POST':
+                data = request.get_json(silent=True)
+                if not isinstance(data, dict):
+                    raise ValueError('无效的排版设置')
+                settings = save_layout_settings(config_folder, data)
+            reports = []
+            folder = os.path.join(config_folder, 'layout_plans')
+            if os.path.isdir(folder):
+                from pathlib import Path
+                reports = sorted(Path(folder).glob('*.report.json'), key=lambda path: path.stat().st_mtime, reverse=True)
+            last = json.loads(reports[0].read_text(encoding='utf-8')) if reports else None
+            return jsonify(status='success', settings=settings, lastReport=last)
+        except ValueError as error:
+            return jsonify(status='error', message=str(error)), 400
 
     ##################################################################
     # 首页路由 / - 提供 index.html 前端进度监控页面
@@ -275,6 +300,18 @@ class PDFTranslator:
         if not isinstance(data, dict):
             raise ValueError("Invalid JSON request")
         config = Config(data)
+        layout = read_layout_settings(config_folder)
+        config._body_layout_settings = layout
+        if layout['preserveColumns']:
+            config.dual_mode = 'LR'
+            config.trans_first = False
+            if config.dual_cut or config.crop_compare:
+                config.dual_cut = False
+                config.crop_compare = False
+                config.compare = True
+            if config.mono_cut:
+                config.mono_cut = False
+                config.mono = True
 
         file_name = self._safe_upload_filename(data.get('fileName'))
         base = os.path.abspath(output_folder)
@@ -816,6 +853,10 @@ class PDFTranslator:
             return self._handle_exception(e, context='/crop-compare')
 
     def _execute_crop_compare_job(self, task_id, input_path, config, engine, infile_type):
+        if getattr(config, '_body_layout_settings', read_layout_settings(config_folder))['preserveColumns']:
+            if infile_type not in {'origin', 'dual'}:
+                raise ValueError('保留双栏需要原始 PDF 或未裁剪 dual 文件，已经裁剪的附件无法恢复完整栏布局')
+            return self._execute_compare_job(task_id, input_path, config, engine, infile_type)
         if infile_type == 'origin':
             if engine == pdf2zh or engine != pdf2zh_next:
                 config.engine = 'pdf2zh'
@@ -1085,7 +1126,8 @@ class PDFTranslator:
     def translate_pdf_next(self, input_path, config, task_id=None):
         if config.service in pdf2zh_next_service_aliases:
             config.service = pdf2zh_next_service_aliases[config.service]
-        config.update_config_file(config_path[pdf2zh_next])
+        with shared_api_lock:
+            config.update_config_file(config_path[pdf2zh_next])
 
         cmd = [
             pdf2zh_next,
@@ -1134,7 +1176,9 @@ class PDFTranslator:
         if config.pool_size and config.pool_size > 1:
             cmd.extend(['--pool-max-worker', str(config.pool_size)])
 
-        if args.enable_winexe and read_section_settings(config_folder)['enabled']:
+        if args.enable_winexe and (read_section_settings(config_folder)['enabled']
+                                  or read_layout_settings(config_folder)['preserveColumns']
+                                  or read_layout_settings(config_folder)['mathMode'] != 'off'):
             raise ValueError('本增强版暂不支持独立 winexe，请使用 Python 托管的 pdf2zh_next 或关闭章节跳过开关。')
         if not args.enable_winexe:
             if config.only_include_translated_page and read_section_settings(config_folder)['enabled']:
@@ -1146,6 +1190,7 @@ class PDFTranslator:
             if section_plan and section_plan.get('detected') and task_id:
                 boundary = section_plan['boundary']
                 task_manager.update_task(task_id, {'message': f"仅翻译正文，第 {boundary['page']} 页起的参考文献及附录保留原文"})
+            cmd = prepare_layout_command(cmd, config_folder, input_path, getattr(config, '_body_layout_settings', None))
 
         fileName = os.path.basename(input_path).replace('.pdf', '')
         no_watermark_mono = os.path.join(output_folder, f"{fileName}.no_watermark.{config.targetLang}.mono.pdf")

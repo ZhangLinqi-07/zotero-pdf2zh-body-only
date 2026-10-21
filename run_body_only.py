@@ -45,8 +45,15 @@ def main():
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/api/section-settings", timeout=2) as response:
             if json.load(response).get("status") == "success":
-                print(f"Body-only server is already available on port {args.port}.")
-                return
+                try:
+                    with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/api/capabilities", timeout=2) as check:
+                        version = json.load(check).get('version')
+                except (OSError, ValueError):
+                    version = None
+                if version == '0.3.0':
+                    print(f"Body-only server is already available on port {args.port}.")
+                    return
+                raise SystemExit('An older body-only service uses this port. Close its window, or choose --port 8892.')
     except (OSError, ValueError):
         pass
     env = os.environ.copy()

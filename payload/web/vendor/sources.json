@@ -1,0 +1,26 @@
+[
+  {
+    "package": "marked",
+    "version": "18.1.1",
+    "source": "https://registry.npmjs.org/marked/-/marked-18.1.1.tgz",
+    "file": "marked.js",
+    "sha256": "b82b9334406d8bdd16b6236c08de1cb65b2a859873ca9503d9cc0b292ca3c12a",
+    "format": "lib/marked.umd.js"
+  },
+  {
+    "package": "dompurify",
+    "version": "3.4.17",
+    "source": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz",
+    "file": "purify.js",
+    "sha256": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31",
+    "format": "dist/purify.min.js"
+  },
+  {
+    "package": "mathjax",
+    "version": "3.2.2",
+    "source": "https://registry.npmjs.org/mathjax/-/mathjax-3.2.2.tgz",
+    "file": "mathjax.js",
+    "sha256": "a4354ff94fd868aea0cc6eaaa79a57fda0588646fc46ee3700a349ee0a11cbe6",
+    "format": "es5/tex-svg-full.js"
+  }
+]

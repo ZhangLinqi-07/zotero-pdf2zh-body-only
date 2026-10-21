@@ -4,23 +4,69 @@
   "pdf2zh_next": "2.9.0",
   "babeldoc": "0.6.2",
   "files": {
+    "index.html": {
+      "after_sha256": "117e368955a9c618830e7fcf2af97d51b84faf47455cbced1670cca2b54b4362",
+      "before_sha256": "0aa5ef966b1afd8c04fc19d9d115762f43be91859b45ddd973101c0c774eca3d"
+    },
+    "prompts/deep_reading_zh.txt": {
+      "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
+    },
     "server.py": {
-      "after_sha256": "32a324ba95af6870d7f3d8466081fd53bcf102a12d9f4cbaef62972e8516e24f",
+      "after_sha256": "33d3be3792fffffc5ec59db74b7331bfc9a2c0d3f571cd76c85af8dfd7444523",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
-    "index.html": {
-      "after_sha256": "d06f1529c2d6729e969e7ca48a113b5ff9d20606b014cb4ec41fd6ea12027be3",
-      "before_sha256": "0aa5ef966b1afd8c04fc19d9d115762f43be91859b45ddd973101c0c774eca3d"
+    "utils/deep_reading.py": {
+      "after_sha256": "fbb5039e2aa897193ffe7a17645bfec3bcf00a1ee27c6e8fad15010d39c04f09"
+    },
+    "utils/environment_lifecycle.py": {
+      "after_sha256": "ca95ad449599a5027d7cc21d18f753821840c3741e1bbb9e7eb895bd24418bfb",
+      "before_sha256": "0c5595f5dd3390d5f6cf2b52bc0ae2de2a46cf32336e4242a68d5dbdddefad78"
     },
     "utils/execute.py": {
       "after_sha256": "6397138d3101e66f006d1bbea00bff322de2caac7715c05c517db24615453483",
       "before_sha256": "41537bfc5eb078c4d47f193990d47180e698c34aa5b36a2a39dac8ff84ad624e"
     },
+    "utils/layout_preservation.py": {
+      "after_sha256": "7e3962b1f79fc8324f083a5fed56a5246ce2f3f27ff890fd6101c49b837a0d8d"
+    },
     "utils/section_skip.py": {
       "after_sha256": "36511bd23b06870625be44c0274de1dd955c8563eb25ef6f845c4e06024e4af1"
     },
     "utils/section_skip_runtime.py": {
-      "after_sha256": "83d150924e48061d8868e95a2351014bc247734cb500f4502b04d282a51b4eb6"
+      "after_sha256": "a21c76c09375a5d6ba737ac47047166e1d5f605eff880eb2fa3e348eccfde835"
+    },
+    "utils/shared_api.py": {
+      "after_sha256": "5dfd59cb5454648da21ec7036e4987ff61062a18bbb6414d48cb858515b912fa"
+    },
+    "web/enhancements.css": {
+      "after_sha256": "03cd3f05a6f7f5a34d87333d00a23372a747bd47bb9c021bfae036858e418ddb"
+    },
+    "web/reading.js": {
+      "after_sha256": "612129557c7dcf71e9bb075b9f5df2f73194e33602aa519731745047960e1c4b"
+    },
+    "web/vendor/dompurify-LICENSE-0.txt": {
+      "after_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "web/vendor/dompurify-LICENSE-1.txt": {
+      "after_sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+    },
+    "web/vendor/marked-LICENSE-0.txt": {
+      "after_sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c"
+    },
+    "web/vendor/marked.js": {
+      "after_sha256": "b82b9334406d8bdd16b6236c08de1cb65b2a859873ca9503d9cc0b292ca3c12a"
+    },
+    "web/vendor/mathjax-LICENSE-0.txt": {
+      "after_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "web/vendor/mathjax.js": {
+      "after_sha256": "a4354ff94fd868aea0cc6eaaa79a57fda0588646fc46ee3700a349ee0a11cbe6"
+    },
+    "web/vendor/purify.js": {
+      "after_sha256": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31"
+    },
+    "web/vendor/sources.json": {
+      "after_sha256": "33079a9152c9350ad1e3c46ca57ad42ac4f5fc9dc412b9a7a2e425aed061bf6c"
     }
   }
 }
