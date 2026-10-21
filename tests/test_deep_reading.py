@@ -17,7 +17,7 @@ import toml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'payload'))
-from utils import shared_api
+from utils import shared_api, web_research
 from utils.deep_reading import register_reading, ReadingManager, merge_continuation
 
 
@@ -34,6 +34,14 @@ class StructuredReadingTests(unittest.TestCase):
         self.manager = register_reading(self.app, self.root)
         self.client = self.app.test_client()
         self.key = 'local-private-fixture-key'
+        self.search_fixture = {'verified': True, 'provider': 'Fixture', 'model': 'local-search', 'protocol': 'responses',
+                               'summary': 'Official publication metadata.', 'queries': ['Original paper'],
+                               'sources': [{'url': 'https://publisher.example/paper', 'title': 'Official paper', 'snippet': 'Evidence.'}],
+                               'searchedAt': '2026-10-21T00:00:00+00:00', 'usage': {'prompt_tokens': 3, 'completion_tokens': 2},
+                               'usageComplete': True, 'searchCalls': 1, 'apiCalls': 1}
+        search_patch = patch.object(web_research, 'research', return_value=self.search_fixture)
+        self.search = search_patch.start()
+        self.addCleanup(search_patch.stop)
 
     def configured(self):
         data = {'siliconflowfree': True, 'openaicompatible_detail': {
@@ -178,7 +186,68 @@ class StructuredReadingTests(unittest.TestCase):
         with patch.object(shared_api, 'read_pdf', return_value=('报告完成。', {'prompt_tokens': 1000, 'completion_tokens': 2000, 'total_tokens': 3000}, 'stop')):
             result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
             job = self.wait_job(result.json['job']['id'])
-        self.assertAlmostEqual(job['estimatedCny'], .007)
+        self.assertAlmostEqual(job['estimatedReadingTokenCny'], .007)
+        self.assertIsNone(job['estimatedCny'])
+        self.assertIn('检索请求与搜索工具费用另计', job['markdown'])
+
+    def test_every_reading_requires_actual_search_and_saves_clickable_sources(self):
+        self.configured()
+        document = self.upload()
+        with patch.object(shared_api, 'read_pdf', return_value=('Complete report.', {}, 'stop')) as reader:
+            started = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(started.json['job']['id'])
+        self.search.assert_called_once()
+        self.assertIn('https://publisher.example/paper', reader.call_args.args[3])
+        self.assertIn('https://publisher.example/paper', job['markdown'])
+        self.assertEqual(job['searchState'], 'verified')
+        self.assertTrue(job['searchRequired'])
+        self.assertEqual(job['searchApiCalls'], 1)
+        self.assertEqual(job['totalApiCalls'], 2)
+
+    def test_failed_search_stops_before_the_full_pdf_request(self):
+        self.configured()
+        document = self.upload()
+        self.search.side_effect = ValueError('搜索工具没有返回可验证的网页来源')
+        with patch.object(shared_api, 'read_pdf') as reader:
+            started = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(started.json['job']['id'])
+        reader.assert_not_called()
+        self.assertEqual(job['state'], 'failed')
+        self.assertEqual(job['searchState'], 'failed')
+        self.assertEqual(job['apiCalls'], 0)
+        self.assertNotIn('markdown', job)
+
+    def test_stop_during_search_prevents_the_full_pdf_call(self):
+        self.configured()
+        document = self.upload()
+        entered, release = threading.Event(), threading.Event()
+        def search(*args, **kwargs):
+            entered.set()
+            release.wait(4)
+            return self.search_fixture
+        self.search.side_effect = search
+        with patch.object(shared_api, 'read_pdf') as reader:
+            started = self.client.post('/api/reading/jobs', json={'documentId': document['id']}).json['job']
+            self.assertTrue(entered.wait(2))
+            self.manager.request_cancel(started['id'])
+            release.set()
+            job = self.wait_job(started['id'])
+        self.assertEqual(job['state'], 'cancelled')
+        reader.assert_not_called()
+
+    def test_search_can_reuse_another_existing_translation_profile(self):
+        self.configured()
+        config = toml.load(self.root / 'config/config.toml')
+        config['deepseek_detail'] = {'deepseek_api_key': 'second-existing-private-key', 'deepseek_model': 'deepseek-flash'}
+        (self.root / 'config/config.toml').write_text(toml.dumps(config), encoding='utf-8')
+        self.manager.configure({'searchProvider': 'deepseek'})
+        document = self.upload()
+        with patch.object(shared_api, 'read_pdf', return_value=('Complete.', {}, 'stop')):
+            started = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(started.json['job']['id'])
+        self.assertEqual(job['state'], 'completed')
+        self.assertEqual(self.search.call_args.args[0].provider, 'deepseek')
+        self.assertNotIn('second-existing-private-key', self.client.get('/api/reading/config').get_data(as_text=True))
 
     def test_missing_usage_never_becomes_a_zero_fee_estimate(self):
         self.configured()

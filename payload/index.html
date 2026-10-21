@@ -378,6 +378,8 @@
             <h2>复用翻译 API</h2>
             <p id="sharedApiStatus">正在读取翻译 API 配置</p>
             <label class="reading-field">本次阅读使用的 API<select id="readingProvider"></select></label>
+            <label class="reading-field">联网核验使用的 API<select id="readingSearchProvider"><option value="auto">自动复用阅读 API</option></select></label>
+            <p>每次深度阅读都会先联网检索，核验发表状态与外部资料，并把网页来源保存到笔记。搜索失败时会明确提示。也可选择另一个已经配置的 API 负责检索。</p>
             <div class="reading-inline"><button class="reading-button secondary" id="refreshSharedApi">刷新已有配置</button></div>
             <details class="reading-advanced" id="apiConfiguration">
               <summary>配置共享 API</summary>
@@ -395,7 +397,7 @@
                 <label class="reading-field">每百万输出 token 的美元额度<input id="outputPrice" type="number" min="0" step="any" placeholder="可留空"></label>
                 <label class="reading-field">每美元额度实付人民币<input id="unitCny" type="number" min="0" step="any" placeholder="按自己的充值比例填写"></label>
               </div>
-              <p>完整 PDF 直接交给 API，不在本地切分或摘要。插件不设置思考强度或输出 token 上限，达到接口输出上限后自动续写。Gemini 模型自动使用原生 PDF 接口，其他模型使用兼容 PDF 格式。金额按填写单价估算，实际扣费以服务商账单为准。</p>
+              <p>完整 PDF 直接交给 API，不在本地切分或摘要。插件不设置思考强度或输出 token 上限，达到接口输出上限后自动续写。Gemini 模型自动使用原生 PDF 接口，OpenAI 官方使用 Responses。检索工具费用另计，填写单价只用于阅读生成的 token 估算。</p>
             </details>
             <button class="reading-button secondary" id="saveSharedApi">保存共享配置与阅读选项</button>
           </section>
@@ -404,7 +406,7 @@
             <label class="reading-field">本地 PDF<input id="readingFile" type="file" accept="application/pdf,.pdf"></label>
             <label class="reading-field">已有 PDF<select id="readingExisting"><option value="">正在读取已有 PDF</option></select></label>
             <div id="readingDocumentInfo" class="reading-summary">选择 PDF 后，原始文件将完整提交给支持 PDF 的 API。</div>
-            <p>使用你提供的论文深度阅读模板，覆盖方法、公式、实验、图表、局限和未来方向。未启用联网检索，外部发表信息无法确认时会标为未核实。</p>
+            <p>使用你提供的论文深度阅读模板，覆盖方法、公式、实验、图表、局限和未来方向。联网检索优先查阅官方来源，证据不足的外部信息仍会标为未核实。</p>
             <button class="reading-button" id="startReading" disabled>开始深度结构化阅读</button>
             <button class="reading-button secondary" id="cancelReading" hidden>停止后续续写</button>
             <div id="readingStatus" class="reading-status" role="status" aria-live="polite"></div>

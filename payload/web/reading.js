@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  let currentDocument = null, currentJob = null, configured = false, polling = null, busy = false;
+  let currentDocument = null, currentJob = null, configured = false, searchReady = false, polling = null, busy = false;
   async function api(url, options) {
     const response = await fetch(url, options);
     const data = await response.json();
@@ -12,7 +12,7 @@
   const post = data => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   function status(text, kind = '') { $('readingStatus').textContent = text; $('readingStatus').className = 'reading-status ' + kind; }
   function startState() {
-    $('startReading').disabled = !currentDocument || !configured || busy;
+    $('startReading').disabled = !currentDocument || !configured || !searchReady || busy;
     $('cancelReading').hidden = !busy;
     $('cancelReading').disabled = !!currentJob?.cancelRequested;
   }
@@ -35,7 +35,8 @@
     } catch (error) { $('layoutStatus').textContent = error.message; }
   }
   async function loadConfig() {
-    const data = await api('/api/reading/config');
+    const [data, capabilities] = await Promise.all([api('/api/reading/config'), api('/api/capabilities')]);
+    searchReady = capabilities.readingSearch === true;
     const select = $('readingProvider'), previous = select.value;
     select.replaceChildren();
     for (const profile of data.profiles) option(select, `${profile.label} · ${profile.model}`, profile.id);
@@ -43,7 +44,12 @@
     if (!configured) option(select, '尚未配置可用于深度阅读的 API', '');
     const requested = new URL(location.href).searchParams.get('api');
     select.value = data.profiles.some(p => p.id === requested) ? requested : data.profiles.some(p => p.id === previous) ? previous : data.selected || '';
-    $('sharedApiStatus').textContent = configured
+    const search = $('readingSearchProvider');
+    search.replaceChildren();
+    option(search, '自动复用阅读 API', 'auto');
+    for (const profile of data.profiles) option(search, `${profile.label} · ${profile.model}`, profile.id);
+    search.value = data.options.searchProvider || 'auto';
+    $('sharedApiStatus').textContent = !searchReady ? '当前后台尚未加载联网阅读功能，请重启到 0.3.3 或更新版本。无需重新填写 API。' : configured
       ? '正在复用翻译 API，深度阅读无需再次填写密钥。'
       : '免费翻译仍可使用。深度阅读需要你配置自己的 API。';
     for (const name of ['pdfProtocol', 'requestTimeout', 'inputPrice', 'outputPrice', 'unitCny']) {
@@ -55,7 +61,7 @@
     startState(); describeDocument();
   }
   async function saveConfig() {
-    const data = { pdfProtocol: $('pdfProtocol').value, requestTimeout: Number($('requestTimeout').value) };
+    const data = { pdfProtocol: $('pdfProtocol').value, requestTimeout: Number($('requestTimeout').value), searchProvider: $('readingSearchProvider').value };
     for (const name of ['inputPrice', 'outputPrice', 'unitCny']) data[name] = $(name).value.trim() === '' ? null : Number($(name).value);
     const endpoint = $('sharedEndpoint').value.trim(), model = $('sharedModel').value.trim(), key = $('sharedKey').value.trim();
     if (endpoint || model || key) Object.assign(data, { endpoint, model, apiKey: key });
@@ -117,9 +123,14 @@
     $('readingProgress').value = job.progress || 0; $('readingProgress').hidden = false;
     status(job.message, job.state === 'failed' || job.state === 'partial' ? 'error' : job.state === 'completed' ? 'success' : '');
     const usage = job.usage || {};
-    $('readingUsage').textContent = `模型 ${job.model} · 请求 ${job.apiCalls || 0} 次 · 输入 token ${usage.prompt_tokens || 0} · 输出 token ${usage.completion_tokens || 0}` + (job.estimatedCny != null ? ` · 估算 ${job.estimatedCny.toFixed(4)} 元` : ' · 单价未设置时不估算金额');
+    $('readingUsage').textContent = `模型 ${job.model} · 阅读请求 ${job.apiCalls || 0} 次 · 检索请求 ${job.searchApiCalls || 0} 次 · 阅读输入 token ${usage.prompt_tokens || 0} · 阅读输出 token ${usage.completion_tokens || 0}`;
+    if (job.estimatedReadingTokenCny != null) $('readingUsage').textContent += ` · 阅读 token 部分估算 ${job.estimatedReadingTokenCny.toFixed(4)} 元，检索费用另计`;
+    else if (job.estimatedCny != null) $('readingUsage').textContent += ` · 原记录估算 ${job.estimatedCny.toFixed(4)} 元`;
+    const searchUsage = job.webResearch?.usage;
+    if (searchUsage && Object.keys(searchUsage).length && job.webResearch.usageComplete) $('readingUsage').textContent += ` · 检索输入 token ${searchUsage.prompt_tokens || 0} · 检索输出 token ${searchUsage.completion_tokens || 0}`;
+    if (job.webResearch?.protocol === 'deepseek') $('readingUsage').textContent += ' · 检索按请求计费';
     if (usage.reasoning_tokens) $('readingUsage').textContent += ` · 输出含思考 token ${usage.reasoning_tokens}`;
-    if (job.usageComplete === false) $('readingUsage').textContent = `模型 ${job.model} · 请求 ${job.apiCalls || 0} 次 · 服务商未返回完整 token 统计，费用请查看账单`;
+    if (job.usageComplete === false) $('readingUsage').textContent += ' · 服务商未返回完整阅读 token 统计，费用请查看账单';
     $('downloadReading').hidden = !job.markdown;
     $('exportReadingHtml').hidden = !job.markdown;
     const target = job.zoteroTarget;

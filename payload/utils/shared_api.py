@@ -160,10 +160,14 @@ def pdf_protocol(profile, selected='auto'):
         raise ValueError('无效的 PDF 接口格式')
     if selected != 'auto':
         return selected
-    return 'gemini' if profile.provider == 'gemini' or profile.model.lower().removeprefix('models/').startswith('gemini') else 'chat'
+    if profile.provider == 'gemini' or profile.model.lower().removeprefix('models/').startswith('gemini'):
+        return 'gemini'
+    if profile.provider == 'openai' or urllib.parse.urlsplit(profile.endpoint).hostname == 'api.openai.com':
+        return 'responses'
+    return 'chat'
 
 
-def pdf_request(profile, pdf, filename, system_prompt, protocol='auto'):
+def pdf_request(profile, pdf, filename, system_prompt, protocol='auto', search_tools=False):
     """One complete original PDF. Omit every generation/thinking/token budget."""
     protocol = pdf_protocol(profile, protocol)
     endpoint = checked_endpoint(profile.endpoint)
@@ -198,6 +202,10 @@ def pdf_request(profile, pdf, filename, system_prompt, protocol='auto'):
             {'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': [
                 {'type': 'file', 'file': {'filename': filename, 'file_data': 'data:application/pdf;base64,' + encoded}},
                 {'type': 'text', 'text': instruction}]}]}
+    if search_tools and protocol == 'gemini':
+        payload['tools'] = [{'google_search': {}}]
+    elif search_tools and protocol == 'responses':
+        payload.update(tools=[{'type': 'web_search'}], include=['web_search_call.action.sources'])
     return endpoint, payload, headers, protocol
 
 
@@ -272,8 +280,8 @@ def continue_pdf_request(body, response, protocol):
     return body
 
 
-def read_pdf(profile, pdf, filename, system_prompt, protocol='auto', timeout=None, conversation=None):
-    endpoint, body, headers, protocol = pdf_request(profile, pdf, filename, system_prompt, protocol)
+def read_pdf(profile, pdf, filename, system_prompt, protocol='auto', timeout=None, conversation=None, search_tools=False):
+    endpoint, body, headers, protocol = pdf_request(profile, pdf, filename, system_prompt, protocol, search_tools)
     if conversation and conversation.get('response'):
         body = continue_pdf_request(conversation['body'], conversation['response'], protocol)
     req = urllib.request.Request(endpoint, data=json.dumps(body, ensure_ascii=False).encode('utf-8'), method='POST', headers=headers)

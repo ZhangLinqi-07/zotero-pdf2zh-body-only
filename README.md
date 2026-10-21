@@ -6,11 +6,11 @@
 
 ## Windows 新用户直接安装
 
-先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.2 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
+先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.3 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
 
 安装器面向 Windows x64，会从官方发布地址下载并校验 uv、原版服务和原版 XPI，准备独立的 Python 3.12 环境，安装兼容的翻译引擎，再应用本项目的章节跳过功能。无需提前安装 Python 或手动配置环境变量。首次安装需要联网下载较多依赖，请等到安装完成提示出现。
 
-安装完成后，本地服务会启动。到 Zotero 的插件管理窗口，使用从文件安装插件功能，选择生成在 **app** 文件夹中的 **zotero-pdf2zh-body-only.xpi**。增强 XPI 基于上游 4.1.7，版本标为 4.1.7.6，保留原插件 ID 与已有设置。原 PDF2zh 右键菜单显示为 Kinbo，深度阅读位于其子菜单内，原有双语对照继续使用同一入口。上游原版 XPI 也会保留在 app 目录。增强包没有沿用上游插件的自动更新地址，后续增强版本从本仓库手动安装。
+安装完成后，本地服务会启动。到 Zotero 的插件管理窗口，使用从文件安装插件功能，选择生成在 **app** 文件夹中的 **zotero-pdf2zh-body-only.xpi**。增强 XPI 基于上游 4.1.7，版本标为 4.1.7.7，保留原插件 ID 与已有设置。原 PDF2zh 右键菜单显示为 Kinbo，深度阅读位于其子菜单内，原有双语对照继续使用同一入口。上游原版 XPI 也会保留在 app 目录。增强包没有沿用上游插件的自动更新地址，后续增强版本从本仓库手动安装。
 
 在 Zotero 的 PDF2zh 设置里，将 Python 服务器地址改成 **http://127.0.0.1:8891**，翻译引擎选择 **pdf2zh_next**，再选择免费服务或填写自己的 API。之后照常右键 PDF 进行翻译或生成双语对照。原版插件默认的 8890 地址需要手动改成这里的 8891。
 
@@ -88,15 +88,17 @@ python install.py --server-dir "你的服务目录" --server-python "原服务�
 
 阅读模板保存在 prompts/deep_reading_zh.txt，内容来自本项目维护者提供的论文深度阅读提示词。笔记覆盖论文信息、研究问题、方法与公式、实验、图表、局限、未来方向和总结。理论论文按证明、假设与边界调整内容，不机械填补实验栏目。
 
-原始 PDF 与完整提示词直接提交给 API，不在本地切分、摘录或先生成摘要。图表、公式与扫描页交给支持 PDF 的模型解析，上传阶段只检查文件有效性、页数和校验值。当前仍未提供联网检索工具，外部录用状态和分区等信息无法核实时必须标为未核实。
+每次深度阅读先联网检索论文身份、发表状态和外部资料，优先使用出版社、会议、期刊和作者机构的官方页面。默认复用当前阅读 API，Gemini 使用 Google Search，OpenAI 兼容服务使用 Responses web_search，DeepSeek 官方使用独立 Search API。也可在阅读选项中选择另一套已有的翻译 API 负责检索，无需另建密钥存储。接口未提供真实搜索记录与有效网页来源时明确失败，不自动退回离线阅读，也不自动重复收费调用。工具支持情况取决于服务商和模型。
 
-Gemini 模型自动使用原生 generateContent PDF 输入，其他模型默认使用 Chat Completions PDF 文件输入，也可在网页选择 Responses PDF 格式。三种格式均发送完整原始 PDF，说明见 [Gemini 文档](https://ai.google.dev/gemini-api/docs/generate-content/document-processing) 与 [OpenAI 文档](https://developers.openai.com/api/docs/guides/file-inputs)。中转接口不支持所选格式时会明确失败，不会偷偷退回文本摘要。
+检索结果与原始 PDF、完整提示词一起交给阅读模型。论文不在本地切分、摘录或先生成摘要，图表、公式与扫描页交给支持 PDF 的模型解析。笔记区分 PDF 证据和外部证据，自动保存工具返回的来源链接、检索时间与检索用量。信息无法核实时仍须标为未核实。Gemini 和 Responses 的阅读请求也保留原生搜索工具，续写期间取得的新来源一并保存。
+
+Gemini 模型自动使用原生 generateContent PDF 输入，OpenAI 官方自动使用 Responses，其他模型默认使用 Chat Completions PDF 文件输入，也可在网页选择 Responses PDF 格式。三种格式均发送完整原始 PDF，说明见 [Gemini 文档](https://ai.google.dev/gemini-api/docs/generate-content/document-processing) 与 [OpenAI 文档](https://developers.openai.com/api/docs/guides/file-inputs)。DeepSeek 官方当前不支持完整 PDF 文件输入，可作为检索 API 配合另一套支持 PDF 的阅读 API。中转接口不支持所选格式时明确失败，不会退回文本摘要。
 
 插件不发送输出 token 上限、思考预算或思考强度参数，旧版分段和 token 设置不再生效。网络等待默认不设置超时，可自行指定秒数。模型与平台自身仍有文件大小、上下文和单次输出边界，本地接受的 PDF 最大为 50 MB。
 
 达到平台单次输出上限后，插件在保留完整 PDF 和已有输出的对话中自动接续，直到接口正常完成，不设置固定续写次数。Gemini 原生思考签名按原样保留，重复的边界文字会合并。每次返回都保存检查点，后续失败、服务重启或手动停止时保留已有笔记并明确标记未完成，避免重复输出造成无效循环。Kinbo 菜单和网页提供停止后续续写，当前已发出的请求结束后停止新增调用。API 自身拒绝过长输入或持续无法生成正文时，无法保证得到完整笔记。
 
-笔记可下载 Markdown，也可导出公式已经排版的离线 HTML。界面展示实际 API 请求次数、输入与输出 token，Gemini 的输出统计包含接口报告的思考 token。续写会产生额外调用，各轮输入与输出均计入统计。填写服务商单价和自己的充值比例后，才估算人民币费用，实际扣费以服务商账单为准。
+笔记可下载 Markdown，也可导出公式已经排版的离线 HTML。界面分别展示阅读与检索的 API 请求次数和 token 用量，Gemini 的输出统计包含接口报告的思考 token。续写会产生额外调用，各轮输入与输出均计入统计。填写阅读服务商单价和自己的充值比例后，可估算阅读生成的 token 部分费用，检索阶段与搜索工具费用另计，整篇总费用以服务商账单为准。
 
 ## 公式与双栏保护
 

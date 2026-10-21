@@ -16,6 +16,8 @@ v0.3.1 增加阅读结果自动保存为 Zotero 子笔记、原生 LaTeX 公式�
 
 v0.3.2 改为完整 PDF 直接阅读，移除本地分段摘要与生成预算，增加多协议 PDF 请求、原生多轮续写、检查点保存与停止后续续写。
 
+v0.3.3 增加每次阅读的联网核验、原生搜索工具与网页来源归档，检索可复用已有翻译 API，新增可读的 utils/web_research.py。修复复杂 PDF 的长绘图指令链深拷贝递归溢出。
+
 prompts/deep_reading_zh.txt 是维护者提供的阅读模板。笔记渲染使用 Marked 18.1.1、DOMPurify 3.4.17 和 MathJax 3.2.2，原许可证与版本校验清单保存在 payload/web/vendor。Marked 采用 MIT，DOMPurify 提供 Apache-2.0 与 MPL-2.0，MathJax 采用 Apache-2.0，其作者声明继续适用。
 
 pdf2zh_next 与 BabelDOC 是独立安装的依赖，其源代码分别可在 https://github.com/PDFMathTranslate/PDFMathTranslate-next 和 https://github.com/funstory-ai/BabelDOC 获取。本包不包含这些依赖的模型权重或运行环境。

@@ -41,11 +41,18 @@ class PdfAPITests(unittest.TestCase):
                     self.wfile.write(json.dumps({'error': 'Echo ' + owner.key}).encode())
                     return
                 if owner.mode == 'gemini':
+                    is_search = not any('inlineData' in p for content in body.get('contents', []) for p in content.get('parts', []))
+                    turn = sum(any('inlineData' in p for c in request[1].get('contents', []) for p in c.get('parts', []))
+                               for request in owner.requests)
                     reply = {'candidates': [{'content': {'role': 'model', 'parts': [
                         {'text': f'Native segment {turn}', 'thoughtSignature': 'opaque-native-signature'}]},
                         'finishReason': 'MAX_TOKENS' if turn == 1 else 'STOP'}],
                         'usageMetadata': {'promptTokenCount': 11, 'candidatesTokenCount': 7,
                                           'thoughtsTokenCount': 3, 'totalTokenCount': 21}}
+                    if is_search:
+                        reply['candidates'][0].update(finishReason='STOP', groundingMetadata={
+                            'webSearchQueries': ['Original paper'], 'groundingChunks': [
+                                {'web': {'uri': 'https://publisher.example/official', 'title': 'Official source'}}]})
                 elif owner.mode == 'responses':
                     reply = {'status': 'incomplete' if turn == 1 else 'completed',
                              'incomplete_details': {'reason': 'max_output_tokens'} if turn == 1 else None,
@@ -182,13 +189,19 @@ class PdfAPITests(unittest.TestCase):
             self.assertEqual(job['state'], 'completed')
             self.assertEqual(job['apiCalls'], 2)
             self.assertEqual(job['continuations'], 1)
+            self.assertEqual(job['searchApiCalls'], 1)
+            self.assertEqual(job['totalApiCalls'], 3)
+            self.assertEqual(job['searchState'], 'verified')
+            self.assertIn('https://publisher.example/official', job['markdown'])
             self.assertIn('Native segment 1', job['markdown'])
             self.assertIn('Native segment 2', job['markdown'])
             self.assertEqual(job['usage']['reasoning_tokens'], 6)
             self.assertEqual(job['usage']['completion_tokens'], 20)
             self.assertEqual(len(manager.pending_notes(target['clientID'])), 1)
             for _, body, _ in self.requests:
-                self.assertEqual(base64.b64decode(body['contents'][0]['parts'][0]['inlineData']['data']), content)
+                if 'inlineData' in body['contents'][0]['parts'][0]:
+                    self.assertEqual(base64.b64decode(body['contents'][0]['parts'][0]['inlineData']['data']), content)
+                self.assertEqual(body['tools'], [{'google_search': {}}])
                 self.assert_unbounded(body)
 
 

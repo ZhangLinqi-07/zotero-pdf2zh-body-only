@@ -10,7 +10,7 @@ vm.runInContext(fs.readFileSync(path.join(root, 'payload/web/vendor/marked.js'),
 vm.runInContext(fs.readFileSync(path.join(root, 'plugin/reading_note.js'), 'utf8'), scope);
 const job = { id: 'b'.repeat(32), documentId: 'c'.repeat(32), state: 'completed', filename: 'paper.pdf',
   zoteroTarget: { title: 'Evidence <and> assumptions' },
-  markdown: '# Findings\n\nInline $x_i^2$ and $a<b$ remain editable.\n\n$$E=mc^2$$\n\n$$\\sum_i x_i = $&$$' };
+  markdown: '# Findings\n\nInline $x_i^2$ and $a<b$ remain editable.\n\n$$E=mc^2$$\n\n$$\\sum_i x_i = $&$$\n\n## 网页来源\n\n[Official publication](https://publisher.example/doi)' };
 const html = scope.BodyOnlyNotes.render(job, 'http://127.0.0.1:8891', scope.marked, { sanitize: value => value });
 assert(html.includes('<span class="math">$x_i^2$</span>'));
 assert(html.includes('<span class="math">$a&lt;b$</span>'));
@@ -18,6 +18,7 @@ assert(html.includes('<pre class="math">$$E=mc^2$$</pre>'));
 assert(html.includes('<pre class="math">$$\\sum_i x_i = $&amp;$$</pre>'));
 assert(html.includes('Evidence &lt;and&gt; assumptions'));
 assert(html.includes('readingJob=' + job.id));
+assert(html.includes('href="https://publisher.example/doi"'));
 assert(!html.includes('PDF2ZHNATIVEMATH'));
 job.state = 'partial';
 assert(scope.BodyOnlyNotes.render(job, 'http://127.0.0.1:8891', scope.marked, { sanitize: value => value }).includes('未完成的深度阅读'));

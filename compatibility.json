@@ -5,18 +5,18 @@
   "babeldoc": "0.6.2",
   "files": {
     "index.html": {
-      "after_sha256": "e7f8f1ce4869728da5fd6e9c4fc68d22cf2fb36ea697a8d44a2a0615541edb5e",
+      "after_sha256": "dbfff0992bb8a13d4a84b827acee951398b86ae17cac1b7fd4a4b22d8b6bcb5f",
       "before_sha256": "0aa5ef966b1afd8c04fc19d9d115762f43be91859b45ddd973101c0c774eca3d"
     },
     "prompts/deep_reading_zh.txt": {
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "7a5cc6aa256bb38b9f43c9f0b54f7114e7fe8b2344a8da8ae471615ccfb24a0b",
+      "after_sha256": "45dbe35fb4362faa4a43acd049eae50e90a22b76baac57364e969b447e8c2525",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/deep_reading.py": {
-      "after_sha256": "87ca2af41c328d81074a31b8ff07e5a0e2ed032ec7f50e562d94be7fe4489135"
+      "after_sha256": "4592890f3708aef59645221a32b0f47b665481aac2c8883f76cdca1b9b7d9305"
     },
     "utils/environment_lifecycle.py": {
       "after_sha256": "ca95ad449599a5027d7cc21d18f753821840c3741e1bbb9e7eb895bd24418bfb",
@@ -36,13 +36,13 @@
       "after_sha256": "d52ee3353f40c4b8617cd8ee445a7c3189e5495ef84da0442c29d9586f9608e5"
     },
     "utils/shared_api.py": {
-      "after_sha256": "e026ecff34510e13556cf491a9989e7f22c01122577a57ef1c5d1011b544e2a7"
+      "after_sha256": "d52fd968d02f0994f77fe5c65bcaf4f01410b04102df200120a494b179ebb02f"
     },
     "web/enhancements.css": {
       "after_sha256": "03cd3f05a6f7f5a34d87333d00a23372a747bd47bb9c021bfae036858e418ddb"
     },
     "web/reading.js": {
-      "after_sha256": "e21c2a54acdc530ce80ca2d6f5ae48c00df57c83e7fc6c055c8bab5580a54d94"
+      "after_sha256": "6b5155e2316ed80c228ed722de4fecc8217120b0a14dd5f3ea5298985b4c17b6"
     },
     "web/vendor/dompurify-LICENSE-0.txt": {
       "after_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
@@ -67,6 +67,9 @@
     },
     "web/vendor/sources.json": {
       "after_sha256": "33079a9152c9350ad1e3c46ca57ad42ac4f5fc9dc412b9a7a2e425aed061bf6c"
+    },
+    "utils/web_research.py": {
+      "after_sha256": "155ded28df6df9b7f833617d3f7ab4faf3fa40c5e1c0bfb6e931e9cd7a8b51ae"
     }
   }
 }

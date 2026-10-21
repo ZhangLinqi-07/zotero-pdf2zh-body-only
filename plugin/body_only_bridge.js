@@ -77,7 +77,7 @@ var BodyOnlyBridge = (() => {
     try {
       const base = baseURL();
       const capability = await Zotero.HTTP.request('GET', base + '/api/capabilities', { responseType: 'json', timeout: 10000 });
-      if (!capability.response?.zoteroNotes || !capability.response?.pdfReading) throw new Error('请先启动 0.3.2 或更新版本的增强服务');
+      if (!capability.response?.zoteroNotes || !capability.response?.pdfReading || !capability.response?.readingSearch) throw new Error('请先启动 0.3.3 或更新版本的增强服务');
       const { item, parent, path } = await selectedPDF(win);
       preparingKey = parent.libraryID + '/' + item.key;
       if (preparing.has(preparingKey)) return;
@@ -110,7 +110,7 @@ var BodyOnlyBridge = (() => {
     } catch (_) {
       // Never display an HTTP exception that may contain the API request body.
       if (view) { view.progress.setError(); view.progress.setText('阅读未能启动，请检查共享 API 和增强服务'); view.popup.startCloseTimer(12000); }
-      win.alert('无法开始深度阅读。请确认自己的 API 支持 PDF 文件，PDF 已有父条目且资料库可编辑，增强服务已启动，并且 PDF2zh 的服务器地址指向 0.3.2 或更新版本。');
+      win.alert('无法开始深度阅读。请确认阅读 API 支持完整 PDF，检索 API 支持联网工具，PDF 已有父条目且资料库可编辑，并且 Kinbo 的服务器地址指向 0.3.3 或更新版本的增强服务。');
     }
     finally { if (acquired) preparing.delete(preparingKey); }
   }
