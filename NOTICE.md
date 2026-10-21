@@ -20,6 +20,8 @@ v0.3.3 增加每次阅读的联网核验、原生搜索工具与网页来源归�
 
 v0.3.4 修复公式保护中的段落导出格式，增加导出检查，提前约束双栏排版边界，并将无法排入的完整译文保存到可跳转的双栏续页。新增可读的 utils/layout_overflow.py，正文排版失败不再回退英文原文。
 
+v0.3.5 修复 Zotero 10 安装要求，保留必填更新地址并指向本派生仓库，新增可核验的更新清单生成器和正式 XPI 安装回归检查。
+
 prompts/deep_reading_zh.txt 是维护者提供的阅读模板。笔记渲染使用 Marked 18.1.1、DOMPurify 3.4.17 和 MathJax 3.2.2，原许可证与版本校验清单保存在 payload/web/vendor。Marked 采用 MIT，DOMPurify 提供 Apache-2.0 与 MPL-2.0，MathJax 采用 Apache-2.0，其作者声明继续适用。
 
 pdf2zh_next 与 BabelDOC 是独立安装的依赖，其源代码分别可在 https://github.com/PDFMathTranslate/PDFMathTranslate-next 和 https://github.com/funstory-ai/BabelDOC 获取。本包不包含这些依赖的模型权重或运行环境。

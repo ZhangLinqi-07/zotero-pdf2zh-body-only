@@ -9,6 +9,9 @@ import zipfile
 import urllib.parse
 
 ROOT = Path(__file__).resolve().parent
+PLUGIN_VERSION = '4.1.7.8'
+UPDATE_URL = 'https://raw.githubusercontent.com/ZhangLinqi-07/zotero-pdf2zh-body-only/main/updates.json'
+MAX_ZOTERO_VERSION = '10.0.*'
 
 
 def build(source, destination, server_url=None):
@@ -21,10 +24,10 @@ def build(source, destination, server_url=None):
     with zipfile.ZipFile(source) as archive:
         files = {name: archive.read(name) for name in archive.namelist() if not name.endswith('/')}
     metadata = json.loads(files['manifest.json'])
-    metadata.update(name='Zotero PDF2zh Body Only', version='4.1.7.7',
+    metadata.update(name='Zotero PDF2zh Body Only', version=PLUGIN_VERSION,
                     description='PDF translation, shared-API structured reading, formula protection and full-page bilingual layout.',
                     homepage_url='https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only')
-    metadata['applications']['zotero'].pop('update_url', None)
+    metadata['applications']['zotero'].update(update_url=UPDATE_URL, strict_max_version=MAX_ZOTERO_VERSION)
     files['manifest.json'] = json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
     bootstrap = files['bootstrap.js'].decode('utf-8')
     bootstrap = bootstrap.replace('var chromeHandle;', 'var chromeHandle;\nvar bodyOnlyBridge;')

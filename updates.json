@@ -1,0 +1,19 @@
+{
+  "addons": {
+    "pdf2zh@guaguastandup.com": {
+      "updates": [
+        {
+          "version": "4.1.7.8",
+          "update_link": "https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.3.5/zotero-pdf2zh-body-only-v0.3.5.xpi",
+          "update_hash": "sha256:497c508bce775e0517c1a727b9f7c72415a62c2b9d1810c0de914f6a965d6d71",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "6.999",
+              "strict_max_version": "10.0.*"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

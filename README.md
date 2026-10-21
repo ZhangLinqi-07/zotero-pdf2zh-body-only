@@ -6,11 +6,13 @@
 
 ## Windows 新用户直接安装
 
-先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.4 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
+先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.5 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
 
 安装器面向 Windows x64，会从官方发布地址下载并校验 uv、原版服务和原版 XPI，准备独立的 Python 3.12 环境，安装兼容的翻译引擎，再应用本项目的章节跳过功能。无需提前安装 Python 或手动配置环境变量。首次安装需要联网下载较多依赖，请等到安装完成提示出现。
 
-安装完成后，本地服务会启动。到 Zotero 的插件管理窗口，使用从文件安装插件功能，选择生成在 **app** 文件夹中的 **zotero-pdf2zh-body-only.xpi**。增强 XPI 基于上游 4.1.7，版本标为 4.1.7.7，保留原插件 ID 与已有设置。原 PDF2zh 右键菜单显示为 Kinbo，深度阅读位于其子菜单内，原有双语对照继续使用同一入口。上游原版 XPI 也会保留在 app 目录。增强包没有沿用上游插件的自动更新地址，后续增强版本从本仓库手动安装。
+安装完成后，本地服务会启动。到 Zotero 的插件管理窗口，使用从文件安装插件功能，选择生成在 **app** 文件夹中的 **zotero-pdf2zh-body-only.xpi**。增强 XPI 基于上游 4.1.7，版本标为 4.1.7.8，保留原插件 ID 与已有设置。原 PDF2zh 右键菜单显示为 Kinbo，深度阅读位于其子菜单内，原有双语对照继续使用同一入口。上游原版 XPI 也会保留在 app 目录。增强包使用本仓库的更新地址，提供明确的版本、兼容范围与下载校验，不会通过上游更新地址覆盖增强功能。后端服务仍通过本仓库安装包更新。
+
+v0.3.4 及更早增强包缺少 Zotero 必填的更新地址字段，可能无法从 XPI 正常安装。遇到此问题请直接下载 v0.3.5 的 XPI，在 Zotero 插件管理窗口覆盖安装，无需卸载原插件或重新填写 API。旧包已安装者也需要手动安装这次修正版，之后插件可通过本仓库更新通道检查新版。
 
 在 Zotero 的 PDF2zh 设置里，将 Python 服务器地址改成 **http://127.0.0.1:8891**，翻译引擎选择 **pdf2zh_next**，再选择免费服务或填写自己的 API。之后照常右键 PDF 进行翻译或生成双语对照。原版插件默认的 8890 地址需要手动改成这里的 8891。
 
