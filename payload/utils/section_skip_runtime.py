@@ -41,6 +41,7 @@ def install_filters(plan):
     from importlib.metadata import version
     if version('pdf2zh-next') != '2.9.0' or version('babeldoc') != '0.6.2':
         raise RuntimeError('Body-only requires pdf2zh-next 2.9.0 and BabelDOC 0.6.2; no model request has been sent.')
+    install_graphics_copy_support()
     from babeldoc.format.pdf.document_il.midend.automatic_term_extractor import AutomaticTermExtractor
     from babeldoc.format.pdf.document_il.midend.il_translator import ILTranslator
     from babeldoc.format.pdf.document_il.midend.il_translator_llm_only import ILTranslatorLLMOnly
@@ -62,6 +63,30 @@ def install_filters(plan):
     AutomaticTermExtractor.procress = wrap(AutomaticTermExtractor.procress)
     ILTranslator.translate = wrap(ILTranslator.translate)
     ILTranslatorLLMOnly.translate = wrap(ILTranslatorLLMOnly.translate)
+
+
+def copy_graphics_instruction(instruction, memo):
+    """Freeze lazy graphics as their exact string value, without copying history.
+
+    BabelDOC may store thousands of persistent linked graphics-state nodes in
+    one string-compatible instruction. Generic deepcopy follows every parent
+    recursively. Materialization already walks that history iteratively and
+    preserves clipping, transforms, colours, and suffix instructions.
+    """
+    value = instruction.materialize()
+    memo[id(instruction)] = value
+    return value
+
+
+def install_graphics_copy_support():
+    # Only this translation subprocess is patched. Older compatible engine
+    # builds store plain strings and do not expose the lazy wrapper.
+    try:
+        from babeldoc.format.pdf.document_il.frontend.il_creater_active_support import LazyPassthroughInstruction
+    except ImportError:
+        return
+    if '__deepcopy__' not in LazyPassthroughInstruction.__dict__:
+        LazyPassthroughInstruction.__deepcopy__ = copy_graphics_instruction
 
 
 def main():
