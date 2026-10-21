@@ -104,7 +104,14 @@ def main():
         engine_args = engine_args[1:]
     sys.argv = ['pdf2zh_next', *engine_args]
     from pdf2zh_next.main import cli
-    cli()
+    try:
+        cli()
+    except SystemExit as result:
+        if result.code not in (None, 0):
+            raise
+        from utils.layout_overflow import finish_layout_outputs
+        finish_layout_outputs(plan, engine_args)
+        raise
 
 
 if __name__ == '__mp_main__' and os.environ.get('ZOTERO_PDF2ZH_SECTION_PLAN'):

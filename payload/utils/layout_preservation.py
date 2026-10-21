@@ -71,9 +71,30 @@ def protect_formula(paragraph, mode):
         return False
     label = (getattr(paragraph, "layout_label", "") or "").lower()
     count, characters, density = formula_density(paragraph)
-    if "formula" in label or "equation" in label:
+    # Remove recognized formula glyphs before checking for surrounding prose.
+    # Mathematical density alone must never exclude explanatory sentences.
+    from collections import Counter
+    import re
+    formula_chars = Counter()
+    for composition in paragraph.pdf_paragraph_composition:
+        formula = getattr(composition, 'pdf_formula', None)
+        if formula is not None:
+            formula_chars.update(''.join(getattr(char, 'char_unicode', '') or '' for char in formula.pdf_character))
+    remaining = []
+    for char in getattr(paragraph, 'unicode', '') or '':
+        if formula_chars[char] > 0:
+            formula_chars[char] -= 1
+        else:
+            remaining.append(char)
+    text = ''.join(remaining)
+    words = re.findall(r'[A-Za-z]{2,}', text)
+    if any(word.lower() not in {'sin', 'cos', 'tan', 'log', 'exp', 'lim', 'max', 'min', 'arg'} for word in words):
+        return False
+    if len(re.findall(r'[\u4e00-\u9fff]', text)) >= 2:
+        return False
+    if 'formula' in label or 'equation' in label:
         return True
-    threshold = .16 if mode == "conservative" else .45
+    threshold = .16 if mode == 'conservative' else .45
     return count > 0 and characters >= 3 and density >= threshold
 
 
@@ -100,8 +121,33 @@ def column_boundary(page):
 
 
 def restore_paragraph(target, original):
+    # Snapshots precede typesetting and contain grouped source glyphs. The PDF
+    # backend accepts only individual glyphs and complete formula objects.
+    # Restoring the groups here used to silently erase fallback paragraphs.
+    from babeldoc.format.pdf.document_il import PdfParagraphComposition
     for field in fields(original):
         setattr(target, field.name, deepcopy(getattr(original, field.name)))
+    compositions = []
+    for item in target.pdf_paragraph_composition:
+        if item.pdf_character is not None or item.pdf_formula is not None:
+            compositions.append(item)
+        elif item.pdf_line is not None:
+            compositions.extend(PdfParagraphComposition(pdf_character=char)
+                                for char in item.pdf_line.pdf_character)
+        elif item.pdf_same_style_characters is not None:
+            compositions.extend(PdfParagraphComposition(pdf_character=char)
+                                for char in item.pdf_same_style_characters.pdf_character)
+        else:
+            raise RuntimeError('Cannot restore source paragraph without positioned glyphs')
+    target.pdf_paragraph_composition = compositions
+
+
+def is_renderable(paragraph):
+    """The pinned PDF backend cannot export pre-typesetting compositions."""
+    items = paragraph.pdf_paragraph_composition
+    return bool(items) and all(item is not None and
+                              (item.pdf_character is not None or item.pdf_formula is not None)
+                              for item in items)
 
 
 class LayoutGuard:
@@ -114,6 +160,31 @@ class LayoutGuard:
         self.columns = {}
         self.fallbacks = []
         self.optimal_scales = {}
+        self.translations = {}
+        self.continuations = []
+        self.queued = set()
+
+    def continue_paragraph(self, paragraph, translated, page, reason):
+        from utils.layout_overflow import paragraph_runs
+        key = id(paragraph)
+        if key not in self.queued:
+            source = self.originals.get(key)
+            box = source.box if source is not None else translated.box
+            if box is None:
+                raise RuntimeError('Cannot link a translation continuation without a source box')
+            runs = paragraph_runs(translated, page.page_number)
+            if not runs:
+                raise RuntimeError('Translation continuation has no content')
+            self.continuations.append({'page': page.page_number,
+                                       'box': [getattr(box, k) for k in ('x', 'y', 'x2', 'y2')],
+                                       'fontSize': getattr(getattr(source, 'pdf_style', None), 'font_size', None) or box.y2 - box.y,
+                                       'runs': runs, 'reason': reason})
+            self.queued.add(key)
+            self.fallbacks.append({'page': page.page_number + 1, 'reason': reason, 'action': 'translationContinuation'})
+        # The original half already contains the complete source. The translated
+        # half gets a clickable marker after PDF export, never source replacement.
+        paragraph.pdf_paragraph_composition = []
+        paragraph.unicode = ''
 
     def remember(self, page, paragraph):
         key = id(paragraph)
@@ -132,6 +203,7 @@ class LayoutGuard:
 
     def report(self):
         data = {"protectedFormulaParagraphs": len(self.protected), "fallbacks": list(self.fallbacks),
+                "continuations": list(self.continuations),
                 "twoColumnPages": [number + 1 for number, middle in self.columns.items() if middle is not None]}
         if self.report_path:
             _write_json(Path(self.report_path), data)
@@ -165,6 +237,7 @@ class LayoutGuard:
         original_document = Typesetting.typesetting_document
         original_optimal = Typesetting._get_optimal_scale
         original_preprocess = Typesetting.preprocess_document
+        original_layout = Typesetting._layout_typesetting_units
         guard = self
 
         @wraps(original_optimal)
@@ -187,10 +260,49 @@ class LayoutGuard:
         @wraps(original_document)
         def document(self, document):
             guard.remember_document(document)
+            guard.translations = {id(p): deepcopy(p) for page in document.page for p in page.pdf_paragraph}
             try:
-                return original_document(self, document)
+                result = original_document(self, document)
+                # Fail before PDF export if any nonempty paragraph would be
+                # silently discarded. Retain source glyphs when available.
+                for page in document.page:
+                    for paragraph in page.pdf_paragraph:
+                        if (paragraph.unicode or '').strip() and not is_renderable(paragraph):
+                            translated = guard.translations.get(id(paragraph))
+                            if translated is None:
+                                raise RuntimeError('Unrenderable paragraph has no translation snapshot')
+                            guard.continue_paragraph(paragraph, translated, page, '段落需要在译文续页排版')
+                return result
             finally:
                 guard.report()
+
+        @wraps(original_layout)
+        def layout(self, units, box, scale, line_skip, paragraph, *args, **kwargs):
+            middle = guard.columns.get(guard.pages.get(id(paragraph)))
+            source = guard.originals.get(id(paragraph))
+            constrained = middle is not None and source is not None and source.box and source.box.x2 <= middle
+            if constrained:
+                box = deepcopy(box)
+                box.x2 = min(box.x2, middle - 5)
+            indent = paragraph.first_line_indent
+            font_size = getattr(getattr(source, 'pdf_style', None), 'font_size', None)
+            narrow_line = (source is not None and source.box and font_size
+                           and source.box.y2 - source.box.y <= font_size * 1.5
+                           and source.box.x2 - source.box.x <= font_size * 12)
+            try:
+                # Table cells and short single-line labels already start at the
+                # source glyph position. A synthetic two-em indent consumes the
+                # entire cell and can force even a short translation to overflow.
+                if narrow_line:
+                    paragraph.first_line_indent = False
+                rendered, fits = original_layout(self, units, box, scale, line_skip, paragraph, *args, **kwargs)
+            finally:
+                paragraph.first_line_indent = indent
+            # Account for hanging punctuation and original glyph offsets while
+            # the engine can still retry a smaller scale, before source fallback.
+            if constrained and any(unit.box and unit.box.x2 > middle + 1 for unit in rendered):
+                fits = False
+            return rendered, fits
 
         @wraps(original_right)
         def right_space(self, box, page):
@@ -208,13 +320,14 @@ class LayoutGuard:
                 restore_paragraph(paragraph, original)
                 return
             curve_count, form_count = len(page.pdf_curve), len(page.pdf_form)
+            translated = deepcopy(paragraph)
             result = original_render(self, paragraph, page, fonts)
             if original is None:
                 return result
             reason = None
             scale = getattr(paragraph, "scale", 1) or 1
             compositions = getattr(paragraph, "pdf_paragraph_composition", [])
-            if scale < .55 or (original.pdf_paragraph_composition and not compositions):
+            if scale < .55 or (original.pdf_paragraph_composition and not is_renderable(paragraph)):
                 reason = "译文无法在可读字号下排入原版面"
             middle = guard.columns.get(page.page_number)
             if middle is not None and original.box and original.box.x2 <= middle:
@@ -238,14 +351,14 @@ class LayoutGuard:
             if reason:
                 del page.pdf_curve[curve_count:]
                 del page.pdf_form[form_count:]
-                restore_paragraph(paragraph, original)
-                guard.fallbacks.append({"page": page.page_number + 1, "reason": reason})
+                guard.continue_paragraph(paragraph, translated, page, reason)
             return result
 
         render._zotero_layout_guard = True
         Typesetting.typesetting_document = document
         Typesetting._get_optimal_scale = optimal
         Typesetting.preprocess_document = preprocess
+        Typesetting._layout_typesetting_units = layout
         Typesetting.get_max_right_space = right_space
         Typesetting.render_paragraph = render
 

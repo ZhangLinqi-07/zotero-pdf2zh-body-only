@@ -6,7 +6,7 @@
 
 ## Windows 新用户直接安装
 
-先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.3 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
+先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.4 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
 
 安装器面向 Windows x64，会从官方发布地址下载并校验 uv、原版服务和原版 XPI，准备独立的 Python 3.12 环境，安装兼容的翻译引擎，再应用本项目的章节跳过功能。无需提前安装 Python 或手动配置环境变量。首次安装需要联网下载较多依赖，请等到安装完成提示出现。
 
@@ -106,7 +106,7 @@ Gemini 模型自动使用原生 generateContent PDF 输入，OpenAI 官方自动
 
 公式保护默认自动识别。对于密集数学、金融和经济论文，可以选择公式优先，保留公式较多的段落及其原有位置。这个模式可能让夹杂公式的整段文字继续保持英文。普通排版选项可关闭额外公式保护。
 
-实现保留分数线等绘图元素，补充 Cambria Math 字体识别，限制文本跨越原栏间距，避免单个过长译文把整篇字号一起缩小。当译文在原版面中需要小到难以阅读或侵入公式区域时，优先回退原文，控制页显示回退统计。极端版式、扫描件和错误的公式识别仍需检查，保护策略无法保证所有论文都无误。
+实现保留分数线等绘图元素，补充 Cambria Math 字体识别，限制文本跨越原栏间距，避免单个过长译文把整篇字号一起缩小。公式周围的说明文字继续翻译。原栏内无法安全容纳的完整译文会进入紧随该页的双栏译文续页，正文编号可点击跳转。续页保留完整模型译文，并以原 PDF 的公式图像呈现其中的公式。排版失败不会用英文原文代替译文。极端版式、扫描件和错误的公式识别仍需检查。
 
 ## 在 Zotero 中使用
 
@@ -171,7 +171,7 @@ python -m unittest discover -s tests -v
 python tests/integration_local.py
 ~~~
 
-数学双栏集成测试使用本地模拟模型，比较六处公式区域的像素、页数、完整并排宽度和过长译文回退。Windows 默认使用本机的 Cambria Math 测试字体，其他系统可通过参数提供已安装的数学字体。
+数学双栏集成测试使用本地模拟模型，比较六处公式区域的像素、完整并排宽度和过长译文续页的完整结尾。Windows 默认使用本机的 Cambria Math 测试字体，其他系统可通过参数提供已安装的数学字体。
 
 ~~~console
 python tests/integration_layout.py --font "本机数学字体文件" --font-number 0

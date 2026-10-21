@@ -24,7 +24,7 @@
       $('mathMode').value = result.settings.mathMode;
       const report = result.lastReport;
       $('layoutStatus').textContent = report
-        ? `最近一次保护了 ${report.protectedFormulaParagraphs} 个公式段落，${report.fallbacks.length} 个难以排入的段落保留原文。`
+        ? `最近一次保护了 ${report.protectedFormulaParagraphs} 个公式段落，${report.compactInlineParagraphs || 0} 个短文本已在原位重排，${report.continuedParagraphs ?? (report.continuations || []).length} 个段落使用完整译文续页。`
         : '整页对照保留原有栏布局。公式保护会优先保留公式位置，无法安全排入的段落保留原文。';
     } catch (error) { $('layoutStatus').textContent = error.message; }
   }

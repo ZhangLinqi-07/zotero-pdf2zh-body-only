@@ -34,9 +34,9 @@ class MockAPI(BaseHTTPRequestHandler):
         calls.append(prompt)
         if '## Here is the input:' in prompt:
             rows = json.loads(prompt.rsplit('## Here is the input:', 1)[1].strip())
-            output = json.dumps([{'id': row['id'], 'output': NORMAL * (60 if 'OVERSIZE' in str(row) else 1)} for row in rows], ensure_ascii=False)
+            output = json.dumps([{'id': row['id'], 'output': NORMAL * (60 if 'OVERSIZE' in str(row) else 1) + ('续页完整结尾标记' if 'OVERSIZE' in str(row) else '')} for row in rows], ensure_ascii=False)
         else:
-            output = NORMAL * (60 if 'OVERSIZE' in prompt else 1)
+            output = NORMAL * (60 if 'OVERSIZE' in prompt else 1) + ('续页完整结尾标记' if 'OVERSIZE' in prompt else '')
         body = json.dumps({'id': 'local-layout-test', 'object': 'chat.completion', 'created': 0,
                            'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': output}, 'finish_reason': 'stop'}],
                            'usage': {'prompt_tokens': 10, 'completion_tokens': 10, 'total_tokens': 20}}).encode()
@@ -135,16 +135,22 @@ openai_compatible_timeout = "15"
     assert 'APPENDIX_SENTINEL_DO_NOT_SEND' not in joined
     # Some display formulas already live outside text paragraphs in BabelDOC
     # and pass through unchanged. Paragraph count is not a formula count.
-    assert report['protectedFormulaParagraphs'] >= 1, report
+    # Inline-math prose now stays in the translation stage. The pixel checks
+    # below verify actual formulas independently of protected paragraph counts.
     assert 1 in report['twoColumnPages'], report
     assert report['fallbacks'], 'The deliberately oversized translation did not fall back safely'
     differences = []
     with pymupdf.open(source) as original, pymupdf.open(output) as translated:
-        assert len(translated) == 3
+        assert len(translated) > 3, 'Full translation continuation is missing'
         assert translated[0].rect == pymupdf.Rect(0, 0, 1224, 792)
         text = translated[0].get_text()
         assert re.search(r'[\u4e00-\u9fff]', text), 'No translated body text'
-        assert 'APPENDIX_SENTINEL_DO_NOT_SEND' in translated[2].get_text()
+        # A successful exit and intact formulas cannot prove that fallback
+        # paragraphs survived. Check the translated half explicitly.
+        right_text = ''.join(page.get_text(clip=pymupdf.Rect(612, 0, 1224, 792)) for page in translated)
+        assert '续页完整结尾标记' in right_text.replace('\n', ''), 'Complete overflow translation is missing'
+        assert 'OVERSIZE' not in right_text, 'Source replaced an overflow translation'
+        assert 'APPENDIX_SENTINEL_DO_NOT_SEND' in translated[-1].get_text()
         for page_number, x0, y0, x1, y1 in rectangles:
             clip = pymupdf.Rect(x0, y0, x1, y1)
             right_clip = clip + pymupdf.Rect(612, 0, 612, 0)
@@ -155,7 +161,8 @@ openai_compatible_timeout = "15"
             differences.append(fraction)
         assert max(differences) < .025, f'Formula region changed: {differences}'
         translated[0].get_pixmap(matrix=pymupdf.Matrix(1, 1), alpha=False).save(folder / 'layout-preview.png')
-    result = {'success': True, 'sourcePages': 3, 'outputPages': 3, 'spreadWidth': 1224, 'formulaPixelDifferences': differences,
+    assert 'Unknown composition type' not in (folder / 'engine.log').read_text(encoding='utf-8'), 'Unexportable paragraph compositions'
+    result = {'success': True, 'sourcePages': 3, 'outputPages': len(pymupdf.open(output)), 'spreadWidth': 1224, 'formulaPixelDifferences': differences,
               'layoutReport': report, 'mockCalls': len(calls), 'externalApiCalls': 0, 'output': str(output)}
     (folder / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(result, ensure_ascii=False))

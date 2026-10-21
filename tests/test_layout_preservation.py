@@ -16,8 +16,9 @@ class LayoutTests(unittest.TestCase):
         paragraph = NS(unicode='x' * 40, layout_label='text', pdf_paragraph_composition=[NS(pdf_formula=NS(pdf_character=[None] * 10))])
         self.assertFalse(protect_formula(paragraph, 'off'))
         self.assertFalse(protect_formula(paragraph, 'auto'))
-        self.assertTrue(protect_formula(paragraph, 'conservative'))
+        self.assertFalse(protect_formula(paragraph, 'conservative'))
         paragraph.layout_label = 'isolate_formula'
+        paragraph.unicode = 'x = 1'
         self.assertTrue(protect_formula(paragraph, 'auto'))
 
     def test_two_column_boundary_does_not_depend_on_paragraph_vertical_alignment(self):
