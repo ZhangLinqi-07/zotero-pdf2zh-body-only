@@ -71,6 +71,7 @@
   }
   function selectDocument(documentInfo) {
     currentDocument = documentInfo; describeDocument(); startState();
+    $('readingNoteStatus').textContent = documentInfo.zoteroTarget ? `阅读完成后自动保存到 Zotero 论文条目下，归属 ${documentInfo.zoteroTarget.title || '所选论文'}。` : '从 Zotero 右键打开论文后，阅读结果会自动保存为该论文的子笔记。当前单独上传的 PDF 仍可下载笔记。';
     const url = new URL(location.href); url.searchParams.set('reading', currentDocument.id); url.hash = 'reading'; history.replaceState(null, '', url);
   }
   async function upload(file) {
@@ -111,6 +112,7 @@
     if (window.MathJax?.typesetPromise) await window.MathJax.typesetPromise([report]);
   }
   async function showJob(job) {
+    const changed = currentJob?.id !== job.id || currentJob?.markdown !== job.markdown;
     currentJob = job; busy = job.state === 'running'; startState();
     $('readingProgress').value = job.progress || 0; $('readingProgress').hidden = false;
     status(job.message, job.state === 'failed' || job.state === 'partial' ? 'error' : job.state === 'completed' ? 'success' : '');
@@ -119,8 +121,10 @@
     if (job.usageComplete === false) $('readingUsage').textContent = `模型 ${job.model} · 请求 ${job.apiCalls || 0} 次 · 服务商未返回完整 token 统计，费用请查看账单`;
     $('downloadReading').hidden = !job.markdown;
     $('exportReadingHtml').hidden = !job.markdown;
-    if (job.markdown) { $('downloadReading').href = `/api/reading/jobs/${job.id}/download`; await renderReport(job.markdown); }
-    if (busy) polling = setTimeout(() => pollJob(job.id), 1200);
+    const target = job.zoteroTarget;
+    $('readingNoteStatus').textContent = !target ? '当前阅读未关联 Zotero 条目，可下载笔记。下次从 Zotero 右键打开论文即可自动归档。' : job.noteState === 'saved' ? `已保存为 Zotero 子笔记，归属 ${target.title || '所选论文'}。` : job.noteState === 'error' ? job.noteError : job.noteState === 'pending' ? `阅读已完成，等待 Zotero 插件保存子笔记。请保持 Zotero 开启，归属 ${target.title || '所选论文'}。` : `阅读完成后会自动保存到 ${target.title || '所选论文'} 的子笔记中。`;
+    if (job.markdown) { $('downloadReading').href = `/api/reading/jobs/${job.id}/download`; if (changed) await renderReport(job.markdown); }
+    if (busy || ['pending', 'error'].includes(job.noteState)) polling = setTimeout(() => pollJob(job.id), busy ? 1200 : 3000);
     else await loadHistory();
   }
   async function pollJob(id) {
@@ -154,9 +158,11 @@
     $('contextChars').addEventListener('input', describeDocument); $('exportReadingHtml').addEventListener('click', exportHtml);
     await Promise.allSettled([loadLayout(), loadConfig(), loadExisting(), loadHistory()]);
     const documentId = new URL(location.href).searchParams.get('reading');
+    const jobId = new URL(location.href).searchParams.get('readingJob');
     if (documentId || location.hash === '#reading') {
       if (typeof switchTab === 'function') switchTab('reading');
       if (documentId) try { selectDocument((await api(`/api/reading/documents/${encodeURIComponent(documentId)}`)).document); } catch (error) { status(error.message, 'error'); }
+      if (jobId && /^[a-f0-9]{32}$/.test(jobId)) await pollJob(jobId);
     }
     // Add an entry beside PDF previews without interpolating filenames as HTML.
     const addReadingButtons = () => {

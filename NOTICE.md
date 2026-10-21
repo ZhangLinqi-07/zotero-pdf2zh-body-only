@@ -12,6 +12,8 @@ v0.2.0 新增从空目录安装的引导程序。原版服务与 XPI 从 guaguas
 
 v0.3.0 加入深度阅读、共享翻译 API、公式保护、双栏整页对照和 Zotero 右键桥接。ZhangLinqi-07 于 2026 年 10 月 21 日修改服务和 bootstrap.js，并新增可读的 plugin/body_only_bridge.js。build_plugin.py 根据校验过的上游 XPI 构建增强 XPI，上游主体脚本保留，新增桥接源码直接包含在增强 XPI 内。原版 XPI 继续保留。
 
+v0.3.1 增加阅读结果自动保存为 Zotero 子笔记、原生 LaTeX 公式与归档重试，并将右键菜单显示名改为 Kinbo。新增 plugin/reading_note.js，增强 XPI 内包含相应源码及 Marked、DOMPurify 与许可证。
+
 prompts/deep_reading_zh.txt 是维护者提供的阅读模板。笔记渲染使用 Marked 18.1.1、DOMPurify 3.4.17 和 MathJax 3.2.2，原许可证与版本校验清单保存在 payload/web/vendor。Marked 采用 MIT，DOMPurify 提供 Apache-2.0 与 MPL-2.0，MathJax 采用 Apache-2.0，其作者声明继续适用。
 
 pdf2zh_next 与 BabelDOC 是独立安装的依赖，其源代码分别可在 https://github.com/PDFMathTranslate/PDFMathTranslate-next 和 https://github.com/funstory-ai/BabelDOC 获取。本包不包含这些依赖的模型权重或运行环境。

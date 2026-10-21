@@ -5,18 +5,18 @@
   "babeldoc": "0.6.2",
   "files": {
     "index.html": {
-      "after_sha256": "117e368955a9c618830e7fcf2af97d51b84faf47455cbced1670cca2b54b4362",
+      "after_sha256": "71c83fd03b00d8ddeaa8cb96c5eeb627ba7693dad343fd334b747098cd6798ba",
       "before_sha256": "0aa5ef966b1afd8c04fc19d9d115762f43be91859b45ddd973101c0c774eca3d"
     },
     "prompts/deep_reading_zh.txt": {
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "33d3be3792fffffc5ec59db74b7331bfc9a2c0d3f571cd76c85af8dfd7444523",
+      "after_sha256": "d755e93aebbc8eb66df50ed1bf49cb973cfc5c0696c4f8aa651de64d2697fbdc",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/deep_reading.py": {
-      "after_sha256": "fbb5039e2aa897193ffe7a17645bfec3bcf00a1ee27c6e8fad15010d39c04f09"
+      "after_sha256": "9594c782a58b70ce10538e97dfa924e855e577f6f11ac43d477c359300d755fb"
     },
     "utils/environment_lifecycle.py": {
       "after_sha256": "ca95ad449599a5027d7cc21d18f753821840c3741e1bbb9e7eb895bd24418bfb",
@@ -42,7 +42,7 @@
       "after_sha256": "03cd3f05a6f7f5a34d87333d00a23372a747bd47bb9c021bfae036858e418ddb"
     },
     "web/reading.js": {
-      "after_sha256": "612129557c7dcf71e9bb075b9f5df2f73194e33602aa519731745047960e1c4b"
+      "after_sha256": "755e9bc8661e8664da45951557d82a4b7c406e3c7d0cf456fef4a3a0a2c4dc72"
     },
     "web/vendor/dompurify-LICENSE-0.txt": {
       "after_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"

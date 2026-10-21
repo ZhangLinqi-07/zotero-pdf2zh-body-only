@@ -199,6 +199,61 @@ class StructuredReadingTests(unittest.TestCase):
         self.manager.path(job_id, '.job.json').write_text(json.dumps({'id': job_id, 'state': 'running'}))
         self.assertEqual(self.manager.snapshot(job_id)['state'], 'interrupted')
 
+    def bound_document(self):
+        target = {'clientID': 'a' * 32, 'libraryID': 1, 'parentKey': 'ABCD1234',
+                  'attachmentKey': 'PDFK1234', 'title': 'Original parent paper'}
+        result = self.client.post('/api/reading/documents', json={
+            'fileName': 'paper.pdf', 'fileContent': base64.b64encode(self.pdf()).decode(), 'zoteroTarget': target})
+        self.assertEqual(result.status_code, 200)
+        return result.json['document'], target
+
+    def test_completed_reading_queues_the_original_parent_and_survives_restart(self):
+        self.configured()
+        document, target = self.bound_document()
+        with patch.object(shared_api, 'chat', return_value=('## Evidence\n\n$x_i$ and $$E=mc^2$$', {}, 'stop')):
+            result = self.client.post('/api/reading/jobs', json={'documentId': document['id'], 'zoteroTarget': {'parentKey': 'WRONGKEY'}})
+            job = self.wait_job(result.json['job']['id'])
+        self.assertEqual(job['zoteroTarget'], target)
+        self.assertEqual(job['noteState'], 'pending')
+        self.assertEqual(self.manager.pending_notes('b' * 32), [])
+        restarted = ReadingManager(self.root)
+        self.assertEqual(restarted.pending_notes(target['clientID'])[0]['id'], job['id'])
+        saved = restarted.acknowledge_note(job['id'], {'clientID': target['clientID'], 'state': 'saved', 'noteKey': 'NOTE1234'})
+        self.assertEqual(saved['noteState'], 'saved')
+        self.assertEqual(restarted.pending_notes(target['clientID']), [])
+        self.assertEqual(restarted.acknowledge_note(job['id'], {'clientID': target['clientID'], 'state': 'saved', 'noteKey': 'NOTE1234'})['noteKey'], 'NOTE1234')
+        with self.assertRaises(ValueError):
+            restarted.acknowledge_note(job['id'], {'clientID': target['clientID'], 'state': 'saved', 'noteKey': 'OTHER123'})
+
+    def test_note_ack_rejects_other_clients_and_retries_without_more_model_calls(self):
+        self.configured()
+        document, target = self.bound_document()
+        with patch.object(shared_api, 'chat', return_value=('A complete report', {}, 'stop')) as model:
+            result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(result.json['job']['id'])
+            route = '/api/reading/jobs/' + job['id'] + '/zotero-note'
+            self.assertEqual(self.client.post(route, json={'clientID': 'b' * 32, 'state': 'saved', 'noteKey': 'NOTE1234'}).status_code, 400)
+            failed = self.client.post(route, json={'clientID': target['clientID'], 'state': 'error'})
+            self.assertEqual(failed.json['job']['noteState'], 'error')
+            self.assertEqual(len(self.client.get('/api/reading/zotero/pending?clientID=' + target['clientID']).json['jobs']), 1)
+            self.assertEqual(self.client.post(route, json={'clientID': target['clientID'], 'state': 'saved', 'noteKey': 'NOTE1234'}).status_code, 200)
+        self.assertEqual(model.call_count, 1)
+
+    def test_invalid_zotero_target_is_rejected_before_document_creation(self):
+        for target in ({}, {'clientID': 'a' * 32, 'libraryID': True, 'parentKey': 'ABCD1234', 'attachmentKey': 'PDFK1234'}):
+            response = self.client.post('/api/reading/documents', json={'fileName': 'paper.pdf', 'fileContent': base64.b64encode(self.pdf()).decode(), 'zoteroTarget': target})
+            self.assertEqual(response.status_code, 400)
+        self.assertEqual(list(self.manager.folder.glob('*.pdf')), [])
+
+    def test_unbound_web_upload_does_not_guess_a_zotero_parent(self):
+        self.configured()
+        document = self.upload()
+        with patch.object(shared_api, 'chat', return_value=('A complete report', {}, 'stop')):
+            result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(result.json['job']['id'])
+        self.assertNotIn('noteState', job)
+        self.assertEqual(self.manager.pending_notes('a' * 32), [])
+
 
 if __name__ == '__main__':
     unittest.main()

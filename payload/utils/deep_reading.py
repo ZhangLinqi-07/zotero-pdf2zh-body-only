@@ -28,6 +28,19 @@ CHUNK_PROMPT = """为后续论文深度阅读提取证据笔记，保留 PDF 页
 定理假设、实验设定和数值、图表编号与图注、局限和研究边界。只分析当前片段，
 不要把其他片段尚未出现的信息当作缺失，也不要补充未核实的外部知识。"""
 ID = re.compile(r"^[a-f0-9]{32}$")
+ITEM_KEY = re.compile(r"^[A-Z0-9]{8}$")
+
+
+def zotero_target(value):
+    if value is None:
+        return None
+    if (not isinstance(value, dict) or not ID.fullmatch(str(value.get('clientID', '')))
+            or type(value.get('libraryID')) is not int or value['libraryID'] < 1
+            or not ITEM_KEY.fullmatch(str(value.get('parentKey', '')))
+            or not ITEM_KEY.fullmatch(str(value.get('attachmentKey', '')))):
+        raise ValueError('无效的 Zotero 论文归属信息，请从 Zotero 重新打开深度阅读')
+    return {key: value[key] for key in ('clientID', 'libraryID', 'parentKey', 'attachmentKey')} | {
+        'title': str(value.get('title', '')).replace('\n', ' ')[:500]}
 
 
 def ordered_page_text(page):
@@ -86,7 +99,8 @@ class ReadingManager:
         _write_json(self.root / "config/reading.json", options)
         return options
 
-    def add_document(self, content, filename):
+    def add_document(self, content, filename, target=None):
+        target = zotero_target(target)
         if not content.startswith(b"%PDF-") or len(content) > 50 * 1024 * 1024:
             raise ValueError("请选择不超过 50 MB 的 PDF")
         name = Path(str(filename).replace("\\", "/")).name.replace("\n", " ").replace("\r", " ")[:240]
@@ -114,6 +128,8 @@ class ReadingManager:
                     "sha256": hashlib.sha256(content).hexdigest(), "imagePages": image_pages,
                     "hasText": sum(len(t) for t in texts) - pages * 20 > 100,
                     "created": datetime.now(timezone.utc).isoformat()}
+        if target:
+            metadata['zoteroTarget'] = target
         self.path(document_id, ".pdf").write_bytes(content)
         self.path(document_id, ".txt").write_text(full_text, encoding="utf-8")
         _write_json(self.path(document_id, ".json"), metadata)
@@ -140,9 +156,43 @@ class ReadingManager:
 
     def update(self, job_id, **fields):
         with self.lock:
+            if job_id not in self.jobs:
+                self.jobs[job_id] = json.loads(self.path(job_id, '.job.json').read_text(encoding='utf-8'))
             self.jobs[job_id].update(fields)
             snapshot = dict(self.jobs[job_id])
-        _write_json(self.path(job_id, ".job.json"), snapshot)
+            _write_json(self.path(job_id, ".job.json"), snapshot)
+
+    def pending_notes(self, client_id):
+        if not ID.fullmatch(client_id or ''):
+            raise ValueError('无效的 Zotero 客户端编号')
+        result = []
+        for path in sorted(self.folder.glob('*.job.json'), key=lambda p: p.stat().st_mtime):
+            job = self.snapshot(path.name[:-len('.job.json')])
+            if (job.get('zoteroTarget', {}).get('clientID') == client_id
+                    and job.get('state') in {'completed', 'partial'} and job.get('markdown')
+                    and job.get('noteState') in {'pending', 'error'}):
+                result.append(job)
+            if len(result) >= 10:
+                break
+        return result
+
+    def acknowledge_note(self, job_id, data):
+        job = self.snapshot(job_id)
+        if (not job.get('zoteroTarget') or data.get('clientID') != job['zoteroTarget']['clientID']
+                or job.get('state') not in {'completed', 'partial'}):
+            raise ValueError('这次阅读没有关联可回写的 Zotero 条目')
+        if job.get('noteState') == 'saved':
+            if data.get('noteKey') != job.get('noteKey'):
+                raise ValueError('该阅读笔记已保存，请勿重复确认')
+            return job
+        if data.get('state') == 'saved' and ITEM_KEY.fullmatch(str(data.get('noteKey', ''))):
+            self.update(job_id, noteState='saved', noteKey=data['noteKey'], noteError=None,
+                        noteSavedAt=datetime.now(timezone.utc).isoformat())
+        elif data.get('state') == 'error':
+            self.update(job_id, noteState='error', noteError='自动保存暂未成功，请确认 Zotero 中的父条目仍存在且资料库可编辑，插件会自动重试')
+        else:
+            raise ValueError('无效的笔记保存状态')
+        return self.snapshot(job_id)
 
     def start(self, document_id, provider, vision=False):
         profile = shared_api.resolve(self.root / "config", provider)
@@ -159,6 +209,8 @@ class ReadingManager:
                                  "state": "running", "progress": 0, "message": "正在准备深度阅读",
                                  "model": profile.model, "provider": profile.label, "usage": {}, "apiCalls": 0,
                                  "vision": bool(vision), "created": datetime.now(timezone.utc).isoformat()}
+            if document.get('zoteroTarget'):
+                self.jobs[job_id].update(zoteroTarget=document['zoteroTarget'], noteState='waiting')
         threading.Thread(target=self.work, args=(job_id, profile, document, options, chunks, vision), daemon=True).start()
         return self.snapshot(job_id)
 
@@ -249,7 +301,8 @@ class ReadingManager:
             self.path(job_id, ".md").write_text(full, encoding="utf-8")
             self.update(job_id, state="partial" if partial else "completed", progress=100,
                         message="报告未完成，请检查模型输出限制" if partial else "深度阅读完成", markdown=full,
-                        estimatedCny=cost, imagePages=shown_pages, chunks=len(chunks), apiCalls=calls, usage=usage, usageComplete=usage_complete)
+                        estimatedCny=cost, imagePages=shown_pages, chunks=len(chunks), apiCalls=calls, usage=usage, usageComplete=usage_complete,
+                        **({'noteState': 'pending'} if document.get('zoteroTarget') else {}))
         except Exception as error:
             safe = str(error).replace(profile.key, "***") if isinstance(error, ValueError) else "阅读失败，请检查 API 连接和本地服务"
             self.update(job_id, state="failed", message=safe, apiCalls=calls, usage=usage)
@@ -286,11 +339,13 @@ def register_reading(app, server_root):
     def upload():
         if request.content_length and request.content_length > 70 * 1024 * 1024:
             raise ValueError("请选择不超过 50 MB 的 PDF")
+        target = None
         if "file" in request.files:
             file = request.files["file"]
             content, name = file.read(50 * 1024 * 1024 + 1), file.filename
         else:
             data = request.get_json(silent=True) or {}
+            target = data.get('zoteroTarget')
             name = data.get("fileName", "paper.pdf")
             if data.get("existingFile"):
                 name = data["existingFile"]
@@ -306,7 +361,7 @@ def register_reading(app, server_root):
                 except (ValueError, TypeError):
                     raise ValueError("无效的 PDF 内容") from None
         try:
-            metadata = manager.add_document(content, name)
+            metadata = manager.add_document(content, name, target)
         except pymupdf.FileDataError:
             raise ValueError("无法打开 PDF，请检查文件是否完整") from None
         return jsonify(status="success", document=metadata)
@@ -349,6 +404,17 @@ def register_reading(app, server_root):
         files = sorted(manager.folder.glob("*.job.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:50]
         result = [manager.snapshot(path.name[:-len('.job.json')]) for path in files]
         return jsonify(status="success", jobs=[{key: value for key, value in job.items() if key != "markdown"} for job in result])
+
+    @routes.route('/api/reading/zotero/pending')
+    def pending_notes():
+        return jsonify(status='success', jobs=manager.pending_notes(request.args.get('clientID')))
+
+    @routes.route('/api/reading/jobs/<job_id>/zotero-note', methods=['POST'])
+    def note_saved(job_id):
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise ValueError('无效的笔记保存状态')
+        return jsonify(status='success', job=manager.acknowledge_note(job_id, data))
 
     app.register_blueprint(routes)
     return manager

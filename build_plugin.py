@@ -21,7 +21,7 @@ def build(source, destination, server_url=None):
     with zipfile.ZipFile(source) as archive:
         files = {name: archive.read(name) for name in archive.namelist() if not name.endswith('/')}
     metadata = json.loads(files['manifest.json'])
-    metadata.update(name='Zotero PDF2zh Body Only', version='4.1.7.3',
+    metadata.update(name='Zotero PDF2zh Body Only', version='4.1.7.4',
                     description='PDF translation, shared-API structured reading, formula protection and full-page bilingual layout.',
                     homepage_url='https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only')
     metadata['applications']['zotero'].pop('update_url', None)
@@ -34,7 +34,7 @@ def build(source, destination, server_url=None):
     bootstrap = bootstrap.replace(original,
         '    const bodyOnlyReady = Zotero.pdf2zh.hooks.onStartup();\n'
         '    Promise.resolve(bodyOnlyReady).then(() => {\n'
-        '    const bridgeContext = { Zotero, Services, IOUtils: typeof IOUtils !== "undefined" ? IOUtils : Zotero.getMainWindow()?.IOUtils };\n'
+        '    const bridgeContext = { Zotero, Services, BodyOnlyRootURI: rootURI, IOUtils: typeof IOUtils !== "undefined" ? IOUtils : Zotero.getMainWindow()?.IOUtils };\n'
         '    Services.scriptloader.loadSubScript(`${rootURI}content/scripts/body-only.js`, bridgeContext);\n'
         '    bodyOnlyBridge = bridgeContext.BodyOnlyBridge;\n    bodyOnlyBridge.start();\n'
         '    }).catch(() => Zotero.logError(new Error("PDF2zh Body Only bridge initialization failed")));')
@@ -53,6 +53,11 @@ def build(source, destination, server_url=None):
     files['bootstrap.js'] = ('// Body-only modifications by ZhangLinqi-07, 2026-10-21. SPDX-License-Identifier: AGPL-3.0-only\n' + bootstrap).encode('utf-8')
     files['prefs.js'] = files['prefs.js'].replace(b'http://localhost:8890', b'http://127.0.0.1:8891')
     files['content/scripts/body-only.js'] = (ROOT / 'plugin/body_only_bridge.js').read_bytes()
+    files['content/scripts/body-only-note.js'] = (ROOT / 'plugin/reading_note.js').read_bytes()
+    for source, target in [('marked.js', 'body-only-marked.js'), ('purify.js', 'body-only-purify.js')]:
+        files['content/scripts/' + target] = (ROOT / 'payload/web/vendor' / source).read_bytes()
+    for license in (ROOT / 'payload/web/vendor').glob('*LICENSE*'):
+        files['licenses/' + license.name] = license.read_bytes()
     files['LICENSE.body-only'] = (ROOT / 'LICENSE').read_bytes()
     files['NOTICE.body-only.md'] = (ROOT / 'NOTICE.md').read_bytes()
     destination.parent.mkdir(parents=True, exist_ok=True)
