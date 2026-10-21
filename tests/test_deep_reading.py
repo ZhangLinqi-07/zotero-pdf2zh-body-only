@@ -379,6 +379,19 @@ class StructuredReadingTests(unittest.TestCase):
         self.assertEqual(job['state'], 'completed')
         self.assertIn('最终完整笔记', job['markdown'])
 
+    def test_interleaved_empty_limit_responses_do_not_impose_a_lifetime_continuation_cap(self):
+        self.configured()
+        document = self.upload()
+        responses = [('', {}, 'length'), ('正文第一部分。', {}, 'length'),
+                     ('', {}, 'length'), ('正文第二部分与总结。', {}, 'stop')]
+        with patch.object(shared_api, 'read_pdf', side_effect=responses) as api:
+            started = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(started.json['job']['id'])
+        self.assertEqual(api.call_count, 4)
+        self.assertEqual(job['state'], 'completed')
+        self.assertIn('第一部分', job['markdown'])
+        self.assertIn('第二部分', job['markdown'])
+
 
 if __name__ == '__main__':
     unittest.main()

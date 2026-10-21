@@ -263,6 +263,7 @@ class ReadingManager:
                     if report:
                         save('running', '接口达到输出上限但未返回正文，正在接续已有笔记')
                     continue
+                seen.discard('empty-length')
                 fingerprint = hashlib.sha256(fragment.strip().encode('utf-8')).hexdigest()
                 if report and (fingerprint in seen or fragment.strip() in report):
                     save('partial', '续写重复了已有内容，已保留笔记并停止重复调用', True)

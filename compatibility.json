@@ -16,7 +16,7 @@
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/deep_reading.py": {
-      "after_sha256": "59a216089c4ef918fd0710142e38c2096b8a04d99c8d4d284c69baefe9187a40"
+      "after_sha256": "87ca2af41c328d81074a31b8ff07e5a0e2ed032ec7f50e562d94be7fe4489135"
     },
     "utils/environment_lifecycle.py": {
       "after_sha256": "ca95ad449599a5027d7cc21d18f753821840c3741e1bbb9e7eb895bd24418bfb",
