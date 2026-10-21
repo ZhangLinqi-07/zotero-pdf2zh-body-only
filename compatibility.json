@@ -1,0 +1,26 @@
+{
+  "upstream": "guaguastandup/zotero-pdf2zh",
+  "upstream_version": "4.1.7",
+  "pdf2zh_next": "2.9.0",
+  "babeldoc": "0.6.2",
+  "files": {
+    "server.py": {
+      "after_sha256": "32a324ba95af6870d7f3d8466081fd53bcf102a12d9f4cbaef62972e8516e24f",
+      "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
+    },
+    "index.html": {
+      "after_sha256": "d06f1529c2d6729e969e7ca48a113b5ff9d20606b014cb4ec41fd6ea12027be3",
+      "before_sha256": "0aa5ef966b1afd8c04fc19d9d115762f43be91859b45ddd973101c0c774eca3d"
+    },
+    "utils/execute.py": {
+      "after_sha256": "6397138d3101e66f006d1bbea00bff322de2caac7715c05c517db24615453483",
+      "before_sha256": "41537bfc5eb078c4d47f193990d47180e698c34aa5b36a2a39dac8ff84ad624e"
+    },
+    "utils/section_skip.py": {
+      "after_sha256": "36511bd23b06870625be44c0274de1dd955c8563eb25ef6f845c4e06024e4af1"
+    },
+    "utils/section_skip_runtime.py": {
+      "after_sha256": "83d150924e48061d8868e95a2351014bc247734cb500f4502b04d282a51b4eb6"
+    }
+  }
+}
