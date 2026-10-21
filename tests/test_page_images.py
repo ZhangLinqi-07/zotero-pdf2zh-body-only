@@ -28,6 +28,15 @@ class PageImageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'deepseek-flash'):
             page_images.select_mode(shared_api.APIProfile('deepseek', 'DS', 'deepseek-chat', self.profile.endpoint, 'fixture'))
 
+    def test_supported_legacy_flash_alias_keeps_exact_model_and_uses_images(self):
+        for name in ('deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'):
+            profile = shared_api.APIProfile('deepseek', 'DS', name, self.profile.endpoint, 'fixture')
+            self.assertEqual(page_images.select_mode(profile), 'images')
+            images = page_images.render_all(self.pdf, profile)
+            _, body, _, _ = shared_api.pdf_request(profile, self.pdf, 'paper.pdf', 'Full template', images=images)
+            self.assertEqual(body['model'], name)
+            self.assertEqual(sum(part['type']=='image_url' for part in body['messages'][1]['content']), 3)
+
     def test_all_pages_are_full_size_and_preserved_in_every_protocol_and_continuation(self):
         with patch.object(pymupdf.Page, 'get_text', side_effect=AssertionError('No local text extraction')):
             images = page_images.render_all(self.pdf, self.profile)

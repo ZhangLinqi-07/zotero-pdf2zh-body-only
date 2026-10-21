@@ -8,7 +8,7 @@ import urllib.parse
 import pymupdf
 
 MODES = {'auto', 'pdf', 'images'}
-DEEPSEEK_MODELS = {'deepseek-flash', 'deepseek-v4-flash-vision-exp'}
+DEEPSEEK_MODELS = {'deepseek-flash', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'}
 DEEPSEEK_BODY_LIMIT = 48 * 1024 * 1024
 
 

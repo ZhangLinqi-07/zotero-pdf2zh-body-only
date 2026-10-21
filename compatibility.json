@@ -12,7 +12,7 @@
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "ac4ae72376a4fac118c8a0ef4c36ab91ec565f923576a29451daa2bd37b57f78",
+      "after_sha256": "38bab7c294c29953ce30edc1f64655defa0b4636ebbc236d1bf7e2ffa4f5ed3d",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/deep_reading.py": {
@@ -33,7 +33,7 @@
       "after_sha256": "4a67b01888e654cb005ef14e6d6071a8c004858ed4224835c0bd8b66eaf66d71"
     },
     "utils/page_images.py": {
-      "after_sha256": "ee600d5b1f0046701e6db0082bf77ee8e91b2ffa05915ab76bddc5ecdb846b34"
+      "after_sha256": "3609e0304f8a0bae1d2a48c16e76a5fd3102b49d848f5dbf60d95e4e196a4895"
     },
     "utils/section_skip.py": {
       "after_sha256": "36511bd23b06870625be44c0274de1dd955c8563eb25ef6f845c4e06024e4af1"
