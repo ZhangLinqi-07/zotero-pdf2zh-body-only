@@ -22,6 +22,8 @@ v0.3.4 修复公式保护中的段落导出格式，增加导出检查，提前�
 
 v0.3.5 修复 Zotero 10 安装要求，保留必填更新地址并指向本派生仓库，新增可核验的更新清单生成器和正式 XPI 安装回归检查。
 
+v0.3.6 增加可选的全部页面图像输入与 DeepSeek Flash 自动适配，保留完整模板、每页图像和原生子笔记流程。新增 utils/page_images.py 与 utils/translation_coverage.py，检查明显正文漏译并补译一次，持续失败时阻止成功导出，修复原生阅读错误的安全展示。
+
 prompts/deep_reading_zh.txt 是维护者提供的阅读模板。笔记渲染使用 Marked 18.1.1、DOMPurify 3.4.17 和 MathJax 3.2.2，原许可证与版本校验清单保存在 payload/web/vendor。Marked 采用 MIT，DOMPurify 提供 Apache-2.0 与 MPL-2.0，MathJax 采用 Apache-2.0，其作者声明继续适用。
 
 pdf2zh_next 与 BabelDOC 是独立安装的依赖，其源代码分别可在 https://github.com/PDFMathTranslate/PDFMathTranslate-next 和 https://github.com/funstory-ai/BabelDOC 获取。本包不包含这些依赖的模型权重或运行环境。

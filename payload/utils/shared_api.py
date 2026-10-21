@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 
 import toml
+from utils import page_images
 
 _WRITE_LOCK = threading.RLock()
 # These are the same OpenAI-compatible endpoints used by pdf2zh_next 2.9.0.
@@ -167,11 +168,11 @@ def pdf_protocol(profile, selected='auto'):
     return 'chat'
 
 
-def pdf_request(profile, pdf, filename, system_prompt, protocol='auto', search_tools=False):
+def pdf_request(profile, pdf, filename, system_prompt, protocol='auto', search_tools=False, images=None):
     """One complete original PDF. Omit every generation/thinking/token budget."""
     protocol = pdf_protocol(profile, protocol)
     endpoint = checked_endpoint(profile.endpoint)
-    encoded = base64.b64encode(pdf).decode('ascii')
+    encoded = base64.b64encode(pdf).decode('ascii') if images is None else ''
     instruction = '请完整阅读所附 PDF，按系统中的论文阅读模板生成中文深度结构化笔记。'
     headers = {'Authorization': 'Bearer ' + profile.key, 'Content-Type': 'application/json',
                'Accept': 'application/json', 'User-Agent': 'zotero-pdf2zh-body-only'}
@@ -202,6 +203,29 @@ def pdf_request(profile, pdf, filename, system_prompt, protocol='auto', search_t
             {'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': [
                 {'type': 'file', 'file': {'filename': filename, 'file_data': 'data:application/pdf;base64,' + encoded}},
                 {'type': 'text', 'text': instruction}]}]}
+    if images is not None:
+        if not images:
+            raise ValueError('全部页面图像不能为空')
+        instruction = ('所附图像按 PDF 页码顺序包含整篇论文的全部页面。请阅读每一页的文字、公式和图表，'
+                       '按完整系统模板生成中文深度结构化笔记，引用时使用标注的 PDF 页码。')
+        parts = []
+        for number, item in enumerate(images, 1):
+            label = f'PDF 第 {number} 页，共 {len(images)} 页'
+            url = 'data:' + item['mimeType'] + ';base64,' + item['data']
+            if protocol == 'gemini':
+                parts.extend([{'text': label}, {'inlineData': {'mimeType': item['mimeType'], 'data': item['data']}}])
+            elif protocol == 'responses':
+                parts.extend([{'type': 'input_text', 'text': label},
+                              {'type': 'input_image', 'image_url': url, 'detail': 'original'}])
+            else:
+                parts.extend([{'type': 'text', 'text': label},
+                              {'type': 'image_url', 'image_url': {'url': url, 'detail': 'original'}}])
+        if protocol == 'gemini':
+            payload['contents'][0]['parts'] = [{'text': instruction}] + parts
+        elif protocol == 'responses':
+            payload['input'][0]['content'] = [{'type': 'input_text', 'text': instruction}] + parts
+        else:
+            payload['messages'][1]['content'] = [{'type': 'text', 'text': instruction}] + parts
     if search_tools and protocol == 'gemini':
         payload['tools'] = [{'google_search': {}}]
     elif search_tools and protocol == 'responses':
@@ -243,6 +267,10 @@ def parse_pdf_response(data, protocol):
         if isinstance(content, list):
             content = '\n'.join(part.get('text', '') for part in content if part.get('type') == 'text')
         usage = data.get('usage') or {}
+        usage = dict(usage)
+        reasoning = (usage.get('completion_tokens_details') or {}).get('reasoning_tokens')
+        if type(reasoning) is int and reasoning >= 0:
+            usage['reasoning_tokens'] = reasoning
         finish = choices[0].get('finish_reason') or 'unknown'
     if not isinstance(content, str) or (not content.strip() and finish != 'length'):
         raise ValueError('API 返回了空内容，请确认模型支持完整 PDF 阅读')
@@ -250,7 +278,7 @@ def parse_pdf_response(data, protocol):
 
 
 CONTINUE_PDF = ('继续完成同一份论文阅读笔记，从上一条输出中断的准确位置继续。不要重新开始，不要重复已有标题、段落或公式。'
-                '此前提交的完整 PDF 仍是阅读依据，请完成余下全部内容。若上一条实际已经完成，只输出 [KINBO_READING_COMPLETE]。')
+                '此前提交的完整论文仍是阅读依据，请完成余下全部内容。若上一条实际已经完成，只输出 [KINBO_READING_COMPLETE]。')
 
 
 def continue_pdf_request(body, response, protocol):
@@ -280,11 +308,11 @@ def continue_pdf_request(body, response, protocol):
     return body
 
 
-def read_pdf(profile, pdf, filename, system_prompt, protocol='auto', timeout=None, conversation=None, search_tools=False):
-    endpoint, body, headers, protocol = pdf_request(profile, pdf, filename, system_prompt, protocol, search_tools)
+def read_pdf(profile, pdf, filename, system_prompt, protocol='auto', timeout=None, conversation=None, search_tools=False, images=None):
+    endpoint, body, headers, protocol = pdf_request(profile, pdf, filename, system_prompt, protocol, search_tools, images)
     if conversation and conversation.get('response'):
         body = continue_pdf_request(conversation['body'], conversation['response'], protocol)
-    req = urllib.request.Request(endpoint, data=json.dumps(body, ensure_ascii=False).encode('utf-8'), method='POST', headers=headers)
+    req = urllib.request.Request(endpoint, data=page_images.serialize(profile, body), method='POST', headers=headers)
     try:
         with urllib.request.build_opener(NoRedirect()).open(req, timeout=timeout) as response:
             data = json.load(response)
@@ -293,7 +321,8 @@ def read_pdf(profile, pdf, filename, system_prompt, protocol='auto', timeout=Non
         status = error.code
         error.close()
         if status in {400, 404, 413, 415, 422}:
-            raise ValueError(f'完整 PDF 请求失败，HTTP {status}。请确认接口格式、模型文件输入能力、文件大小与上下文范围。未自动切分、降级或重试') from None
+            kind = '全部页面图像' if images is not None else '完整 PDF'
+            raise ValueError(f'{kind}请求失败，HTTP {status}。请确认接口格式、模型输入能力、请求大小与上下文范围。未自动切分或重试') from None
         raise ValueError(f'API 请求失败，HTTP {status}。请检查接口、模型权限和额度。未自动重试') from None
     except urllib.error.URLError:
         raise ValueError("无法连接 API，请检查网络与接口地址") from None

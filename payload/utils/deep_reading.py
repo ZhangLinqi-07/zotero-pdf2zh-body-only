@@ -12,7 +12,7 @@ import uuid
 from flask import Blueprint, jsonify, request, send_file
 import pymupdf
 
-from utils import shared_api, web_research
+from utils import shared_api, web_research, page_images
 from utils.section_skip import _write_json
 
 GROUNDING = """使用中文分级 Markdown 标题与连贯段落，按用户的阅读模板组织笔记。
@@ -60,7 +60,7 @@ class ReadingManager:
         path = self.root / 'config/reading.json'
         stored = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
         # Old local token budgets and chunk sizes are deliberately ignored.
-        defaults = {'pdfProtocol': 'auto', 'requestTimeout': 0, 'searchProvider': 'auto',
+        defaults = {'pdfProtocol': 'auto', 'documentMode': 'auto', 'requestTimeout': 0, 'searchProvider': 'auto',
                     'inputPrice': None, 'outputPrice': None, 'unitCny': None}
         return {name: stored.get(name, default) for name, default in defaults.items()}
 
@@ -73,6 +73,10 @@ class ReadingManager:
         if type(timeout) is not int or timeout < 0:
             raise ValueError('网络等待时间需为非负整数，0 表示不设置超时')
         options.update(pdfProtocol=protocol, requestTimeout=timeout)
+        mode = data.get('documentMode', options['documentMode'])
+        if mode not in page_images.MODES:
+            raise ValueError('无效的论文输入模式')
+        options['documentMode'] = mode
         selected = data.get('searchProvider', options['searchProvider'])
         if not isinstance(selected, str) or selected not in {'auto', *shared_api.PROVIDERS}:
             raise ValueError('请选择自动复用或已有的检索 API')
@@ -180,8 +184,9 @@ class ReadingManager:
         document = self.document(document_id)
         options = self.options()
         protocol = shared_api.pdf_protocol(profile, options['pdfProtocol'])
-        if web_research.protocol_for(profile) == 'deepseek':
-            raise ValueError('DeepSeek 官方接口当前不支持直接提交完整 PDF。请选择支持完整 PDF 的阅读 API；DeepSeek 可在阅读选项中作为检索 API 使用')
+        mode = page_images.select_mode(profile, options['documentMode'])
+        if page_images.official_deepseek(profile) and protocol == 'gemini':
+            raise ValueError('DeepSeek 官方 API 请选择自动、Chat 或 Responses 接口格式')
         search_profile = web_research.resolve_profile(self.root / 'config', profile, options['searchProvider'])
         job_id = uuid.uuid4().hex
         with self.lock:
@@ -195,7 +200,7 @@ class ReadingManager:
             self.jobs[job_id] = {'id': job_id, 'documentId': document_id, 'filename': document['filename'],
                                  'state': 'running', 'progress': 0, 'message': '正在准备完整 PDF 阅读',
                                  'model': profile.model, 'provider': profile.label, 'usage': {}, 'apiCalls': 0,
-                                 'inputMode': 'pdf', 'pdfProtocol': protocol, 'continuations': 0,
+                                 'inputMode': mode, 'pdfProtocol': protocol, 'continuations': 0,
                                  'searchRequired': True, 'searchState': 'pending', 'searchApiCalls': 0,
                                  'documentSha256': document['sha256'], 'created': datetime.now(timezone.utc).isoformat()}
             if target:
@@ -218,9 +223,12 @@ class ReadingManager:
         awaiting_response = False
         seen = set()
         research, search_api_calls = None, 0
-        prefix = (f"# 深度结构化阅读\n\n{document['filename']}\n\n"
-                  f"已提交完整原始 PDF，共 {document['pages']} 页，由 API 直接解析文字与图表。"
-                  '未在本地切分或压缩论文，已启用联网核验。\n\n')
+        mode = self.snapshot(job_id).get('inputMode', 'pdf')
+        input_description = (f"已提交全部 {document['pages']} 页的整页图像，144 dpi PNG，按 PDF 页码顺序一次阅读。"
+                             '图像输入经过页面栅格化，细小公式的识别仍受模型视觉能力影响。' if mode == 'images' else
+                             f"已提交完整原始 PDF，共 {document['pages']} 页，由 API 直接解析文字与图表。")
+        prefix = (f"# 深度结构化阅读\n\n{document['filename']}\n\n" + input_description +
+                  '未选页、分段摘要或压缩论文内容，已启用联网核验。\n\n')
 
         def save(state, message, partial=False):
             cost = None
@@ -256,13 +264,26 @@ class ReadingManager:
             if self.snapshot(job_id).get('cancelRequested'):
                 self.update(job_id, state='cancelled', message='已停止阅读，未调用检索和阅读 API')
                 return
+            images = None
+            template = (self.root / 'prompts/deep_reading_zh.txt').read_text(encoding='utf-8-sig')
+            if mode == 'images':
+                self.update(job_id, message=f"正在渲染全部 {document['pages']} 页整页图像，尚未调用 API", progress=5)
+                images = page_images.render_all(pdf, profile, lambda: self.snapshot(job_id).get('cancelRequested'))
+                # Validate the complete payload before making even a paid search request.
+                _, body, _, _ = shared_api.pdf_request(profile, pdf, document['filename'], GROUNDING + template,
+                                                      protocol=protocol, images=images)
+                page_images.serialize(profile, body)
+                self.update(job_id, imagePages=len(images), imageDpi=144)
+            if self.snapshot(job_id).get('cancelRequested'):
+                self.update(job_id, state='cancelled', message='已停止阅读，未调用检索和阅读 API')
+                return
             search_api_calls = 1
             self.update(job_id, searchState='running', searchApiCalls=1, totalApiCalls=1, progress=15,
                         message='正在联网核验论文发表信息与外部资料')
             research = web_research.research(search_profile, document, timeout=options['requestTimeout'] or None)
             self.update(job_id, searchState='verified', webResearch=research, progress=30,
-                        message=f"已检索到 {len(research['sources'])} 个网页来源，正在提交完整 PDF")
-            prompt = (GROUNDING + '\n\n' + (self.root / 'prompts/deep_reading_zh.txt').read_text(encoding='utf-8-sig')
+                        message=f"已检索到 {len(research['sources'])} 个网页来源，正在提交" + ('全部页面图像' if images is not None else '完整 PDF'))
+            prompt = (GROUNDING + '\n\n' + template
                       + web_research.prompt_context(research))
             while True:
                 if self.snapshot(job_id).get('cancelRequested'):
@@ -271,13 +292,19 @@ class ReadingManager:
                     else:
                         self.update(job_id, state='cancelled', progress=0, message='已停止阅读，未生成笔记')
                     return
+                if page_images.official_deepseek(profile):
+                    _, payload, _, _ = shared_api.pdf_request(profile, pdf, document['filename'], prompt, protocol=protocol, images=images)
+                    if continuation_state.get('response'):
+                        payload = shared_api.continue_pdf_request(continuation_state['body'], continuation_state['response'], protocol)
+                    page_images.serialize(profile, payload)
                 calls += 1
                 self.update(job_id, apiCalls=calls, totalApiCalls=calls + search_api_calls, progress=50 if calls == 1 else 80,
-                            message='正在向 API 提交完整 PDF 并阅读' if calls == 1 else f'接口达到输出上限，正在自动续写第 {calls - 1} 次')
+                            message=('正在向 API 提交全部页面图像并阅读' if images is not None else '正在向 API 提交完整 PDF 并阅读') if calls == 1 else f'接口达到输出上限，正在自动续写第 {calls - 1} 次')
                 awaiting_response = True
                 fragment, tokens, finish = shared_api.read_pdf(profile, pdf, document['filename'], prompt,
                     protocol=protocol, timeout=options['requestTimeout'] or None, conversation=continuation_state,
-                    search_tools=protocol in {'gemini', 'responses'})
+                    search_tools=protocol in {'gemini', 'responses'} and not page_images.official_deepseek(profile),
+                    images=images)
                 awaiting_response = False
                 if continuation_state.get('response') and protocol in {'gemini', 'responses'}:
                     try:
@@ -318,6 +345,9 @@ class ReadingManager:
                      '深度阅读完成' if finish == 'stop' else '接口未正常完成输出，已有笔记已保留', finish != 'stop')
                 return
         except Exception as error:
+            if isinstance(error, InterruptedError) and self.snapshot(job_id).get('cancelRequested'):
+                self.update(job_id, state='cancelled', message='已停止页面渲染，未调用检索和阅读 API')
+                return
             if awaiting_response:
                 usage_complete = False
             safe = str(error).replace(profile.key, '***').replace(search_profile.key, '***') if isinstance(error, ValueError) else '阅读请求失败，请检查 API 连接和本地服务'
@@ -325,7 +355,7 @@ class ReadingManager:
                 save('partial', safe + '，已有笔记已保留', True)
             else:
                 self.update(job_id, state='failed', message=safe, apiCalls=calls, usage=usage, usageComplete=usage_complete,
-                            searchState='verified' if research else 'failed', searchApiCalls=search_api_calls,
+                            searchState='verified' if research else 'failed' if search_api_calls else 'not_started', searchApiCalls=search_api_calls,
                             totalApiCalls=calls + search_api_calls)
 
 
@@ -350,7 +380,8 @@ def register_reading(app, server_root):
 
     @routes.errorhandler(ValueError)
     def invalid(error):
-        return jsonify(status="error", message=str(error)), 400
+        message = re.sub(r'sk-[A-Za-z0-9_-]+', '***', str(error))[:600]
+        return jsonify(status="error", code='READING_VALIDATION', message=message), 400
 
     @routes.before_request
     def local_origin():
@@ -369,7 +400,7 @@ def register_reading(app, server_root):
             manager.configure(data)
         found, active = shared_api.profiles(manager.root / "config")
         return jsonify(status="success", profiles=[profile.public() for profile in found], selected=active,
-                       options=manager.options(), inputMode='pdf', outputLimit='provider', searchRequired=True)
+                       options=manager.options(), inputMode='configurable', documentModes=sorted(page_images.MODES), outputLimit='provider', searchRequired=True)
 
     @routes.route("/api/reading/documents", methods=["POST"])
     def upload():

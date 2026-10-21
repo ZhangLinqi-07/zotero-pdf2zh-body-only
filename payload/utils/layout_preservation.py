@@ -33,8 +33,7 @@ def save_layout_settings(config_folder, data):
 
 def prepare_layout_command(command, config_folder, input_path, settings=None):
     settings = settings or read_layout_settings(config_folder)
-    if not settings["preserveColumns"] and settings["mathMode"] == "off":
-        return command
+    # The per-job runtime also verifies translation coverage when layout guards are disabled.
     result = list(command)
     marker = "--zotero-section-skip-plan"
     plan = {"detected": False}

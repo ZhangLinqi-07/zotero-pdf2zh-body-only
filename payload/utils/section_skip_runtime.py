@@ -50,19 +50,26 @@ def install_filters(plan):
     if guard is not None:
         guard.install()
 
-    def wrap(original):
+    def wrap(original, coverage=False):
         if getattr(original, '_zotero_section_filter', False):
             return original
         @wraps(original)
         def filtered(self, document, *args, **kwargs):
             with body_paragraphs(document, plan, guard):
-                return original(self, document, *args, **kwargs)
+                if coverage:
+                    from utils.translation_coverage import verify_document
+                    translator = getattr(self, 'il_translator', self)
+                    finish = verify_document(translator, document, plan.get('coverageReport'))
+                result = original(self, document, *args, **kwargs)
+                if coverage:
+                    finish()
+                return result
         filtered._zotero_section_filter = True
         return filtered
 
     AutomaticTermExtractor.procress = wrap(AutomaticTermExtractor.procress)
-    ILTranslator.translate = wrap(ILTranslator.translate)
-    ILTranslatorLLMOnly.translate = wrap(ILTranslatorLLMOnly.translate)
+    ILTranslator.translate = wrap(ILTranslator.translate, True)
+    ILTranslatorLLMOnly.translate = wrap(ILTranslatorLLMOnly.translate, True)
 
 
 def copy_graphics_instruction(instruction, memo):
@@ -98,6 +105,9 @@ def main():
     # Windows starts BabelDOC in a fresh Python process. Its __mp_main__ import
     # must install the same filter before invoking the native worker target.
     os.environ['ZOTERO_PDF2ZH_SECTION_PLAN'] = str(Path(options.plan).resolve())
+    plan['coverageReport'] = str(Path(options.plan).with_suffix('.coverage.json'))
+    from utils.section_skip import _write_json
+    _write_json(Path(plan['coverageReport']), {'status': 'pending', 'runs': []})
     install_filters(plan)
     engine_args = options.engine_args
     if engine_args and engine_args[0] == '--':
@@ -109,13 +119,17 @@ def main():
     except SystemExit as result:
         if result.code not in (None, 0):
             raise
-        from utils.layout_overflow import finish_layout_outputs
-        finish_layout_outputs(plan, engine_args)
-        raise
+    from utils.translation_coverage import require_passed
+    require_passed(plan['coverageReport'])
+    from utils.layout_overflow import finish_layout_outputs
+    finish_layout_outputs(plan, engine_args)
 
 
 if __name__ == '__mp_main__' and os.environ.get('ZOTERO_PDF2ZH_SECTION_PLAN'):
-    install_filters(json.loads(Path(os.environ['ZOTERO_PDF2ZH_SECTION_PLAN']).read_text(encoding='utf-8')))
+    child_plan_path = Path(os.environ['ZOTERO_PDF2ZH_SECTION_PLAN'])
+    child_plan = json.loads(child_plan_path.read_text(encoding='utf-8'))
+    child_plan['coverageReport'] = str(child_plan_path.with_suffix('.coverage.json'))
+    install_filters(child_plan)
 
 if __name__ == '__main__':
     main()

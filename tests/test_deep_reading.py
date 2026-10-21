@@ -81,6 +81,48 @@ class StructuredReadingTests(unittest.TestCase):
         self.assertIn('自己的 API', response.json['message'])
         call.assert_not_called()
 
+    def test_deepseek_all_pages_and_full_prompt_reading_queues_native_note(self):
+        self.client.post('/api/reading/sync-translation-api', json={
+            'service': 'deepseek', 'model': 'deepseek-flash', 'apiKey': self.key})
+        document = self.manager.add_document(self.pdf(pages=3), 'paper.pdf', {
+            'clientID': 'a' * 32, 'libraryID': 1, 'parentKey': 'ABCD1234', 'attachmentKey': 'PDFK1234'})
+        with patch.object(shared_api, 'read_pdf', return_value=('完整图像笔记。', {}, 'stop')) as call:
+            result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(result.json['job']['id'])
+        self.assertEqual(job['state'], 'completed')
+        self.assertEqual(job['inputMode'], 'images')
+        self.assertEqual(job['imagePages'], 3)
+        self.assertEqual(len(call.call_args.kwargs['images']), 3)
+        self.assertIn('论文基本信息', call.call_args.args[3])
+        self.assertFalse(call.call_args.kwargs['search_tools'])
+        self.assertIn('144 dpi', job['markdown'])
+        self.assertNotIn('已提交完整原始 PDF', job['markdown'])
+        self.assertEqual(len(self.manager.pending_notes('a' * 32)), 1)
+
+    def test_image_oversize_fails_before_paid_search_or_read(self):
+        self.client.post('/api/reading/sync-translation-api', json={
+            'service': 'deepseek', 'model': 'deepseek-flash', 'apiKey': self.key})
+        document = self.upload()
+        with patch('utils.page_images.DEEPSEEK_BODY_LIMIT', 40), patch.object(shared_api, 'read_pdf') as call:
+            result = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+            job = self.wait_job(result.json['job']['id'])
+        self.assertEqual(job['state'], 'failed')
+        self.assertEqual(job['apiCalls'], 0)
+        self.assertEqual(job['searchApiCalls'], 0)
+        self.search.assert_not_called()
+        call.assert_not_called()
+
+    def test_deepseek_explicit_pdf_gives_specific_safe_error(self):
+        self.client.post('/api/reading/sync-translation-api', json={
+            'service': 'deepseek', 'model': 'deepseek-flash', 'apiKey': self.key})
+        self.manager.configure({'documentMode': 'pdf'})
+        document = self.upload()
+        response = self.client.post('/api/reading/jobs', json={'documentId': document['id']})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['code'], 'READING_VALIDATION')
+        self.assertIn('全部页面图像', response.json['message'])
+        self.assertNotIn(self.key, response.get_data(as_text=True))
+
     def test_translation_api_is_reused_without_returning_the_key(self):
         self.configured()
         response = self.client.get('/api/reading/config')

@@ -5,6 +5,7 @@ var BodyOnlyBridge = (() => {
   const prefix = 'extensions.zotero.pdf2zh.';
   let active = false, timer = null, syncing = false, noteTools = null;
   const readingWindows = new Map(), preparing = new Set();
+  class SafeReadingError extends Error {}
   function progressWindow(text) {
     const popup = new Zotero.ProgressWindow({ closeOnClick: true });
     popup.changeHeadline('Kinbo 深度结构化阅读');
@@ -33,30 +34,33 @@ var BodyOnlyBridge = (() => {
   function baseURL() {
     const result = String(preference('new_serverip') || 'http://127.0.0.1:8891').replace(/\/+$/, '');
     const uri = Services.io.newURI(result);
-    if (!['http', 'https'].includes(uri.scheme)) throw new Error('请在 PDF2zh 设置中填写有效的本地服务地址');
+    if (!['http', 'https'].includes(uri.scheme)) throw new SafeReadingError('请在 Kinbo 设置中填写有效的本地服务地址');
     return result;
   }
   async function post(url, data) {
     const response = await Zotero.HTTP.request('POST', url, {
       body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' },
-      responseType: 'json', timeout: 120000,
+      responseType: 'json', timeout: 120000, successCodes: [200, 202, 400, 403, 404, 409, 413, 422, 500],
     });
     const result = response.response;
-    if (!result || result.status === 'error') throw new Error(result?.message || '增强服务返回了错误');
+    if (result?.status === 'error' && result.code === 'READING_VALIDATION' && typeof result.message === 'string') {
+      throw new SafeReadingError(result.message.replace(/sk-[A-Za-z0-9_-]+/g, '***').slice(0, 600));
+    }
+    if (!result || result.status === 'error' || response.status >= 400) throw new SafeReadingError('增强服务拒绝了请求，请检查后台版本和日志');
     return result;
   }
   async function selectedPDF(win) {
     const tabId = win.Zotero_Tabs?.selectedID;
     const reader = tabId && Zotero.Reader?.getByTabID(tabId);
     let item = reader?.itemID ? Zotero.Items.get(reader.itemID) : win.ZoteroPane?.getSelectedItems()?.[0];
-    if (!item) throw new Error('请先选择一篇论文或 PDF 附件');
+    if (!item) throw new SafeReadingError('请先选择一篇论文或 PDF 附件');
     if (!item.isAttachment()) item = await item.getBestAttachment();
-    if (!item || item.attachmentContentType !== 'application/pdf') throw new Error('所选条目没有可读取的 PDF 附件');
+    if (!item || item.attachmentContentType !== 'application/pdf') throw new SafeReadingError('所选条目没有可读取的 PDF 附件');
     const path = await item.getFilePathAsync();
-    if (!path) throw new Error('PDF 尚未下载到本机，请先打开附件');
+    if (!path) throw new SafeReadingError('PDF 尚未下载到本机，请先打开附件');
     const parent = item.parentID && Zotero.Items.get(item.parentID);
-    if (!parent?.isRegularItem() || parent.deleted) throw new Error('请先为独立 PDF 创建父条目，再开始深度阅读');
-    if (!Zotero.Libraries.get(parent.libraryID)?.editable) throw new Error('论文所在资料库不可编辑，无法保存子笔记');
+    if (!parent?.isRegularItem() || parent.deleted) throw new SafeReadingError('请先为独立 PDF 创建父条目，再开始深度阅读');
+    if (!Zotero.Libraries.get(parent.libraryID)?.editable) throw new SafeReadingError('论文所在资料库不可编辑，无法保存子笔记');
     return { item, parent, path };
   }
   async function syncAPI(base) {
@@ -77,7 +81,7 @@ var BodyOnlyBridge = (() => {
     try {
       const base = baseURL();
       const capability = await Zotero.HTTP.request('GET', base + '/api/capabilities', { responseType: 'json', timeout: 10000 });
-      if (!capability.response?.zoteroNotes || !capability.response?.pdfReading || !capability.response?.readingSearch) throw new Error('请先启动 0.3.3 或更新版本的增强服务');
+      if (!capability.response?.zoteroNotes || !capability.response?.pdfReading || !capability.response?.readingSearch || !capability.response?.fullPageImageReading) throw new SafeReadingError('请先启动 0.3.6 或更新版本的增强服务，才能使用全部页面图像阅读。无需重新填写 API');
       const { item, parent, path } = await selectedPDF(win);
       preparingKey = parent.libraryID + '/' + item.key;
       if (preparing.has(preparingKey)) return;
@@ -88,15 +92,15 @@ var BodyOnlyBridge = (() => {
       const io = typeof IOUtils !== 'undefined' ? IOUtils : win.IOUtils;
       let binary;
       if (io?.read) {
-        if (io.stat && (await io.stat(path)).size > 50 * 1024 * 1024) throw new Error('深度阅读暂时接受不超过 50 MB 的 PDF');
+        if (io.stat && (await io.stat(path)).size > 50 * 1024 * 1024) throw new SafeReadingError('深度阅读暂时接受不超过 50 MB 的 PDF');
         const bytes = await io.read(path);
-        if (bytes.length > 50 * 1024 * 1024) throw new Error('深度阅读暂时接受不超过 50 MB 的 PDF');
+        if (bytes.length > 50 * 1024 * 1024) throw new SafeReadingError('深度阅读暂时接受不超过 50 MB 的 PDF');
         const chunks = [];
         for (let index = 0; index < bytes.length; index += 32768) chunks.push(String.fromCharCode(...bytes.subarray(index, index + 32768)));
         binary = chunks.join('');
       } else {
         binary = await Zotero.File.getBinaryContentsAsync(path);
-        if (binary.length > 50 * 1024 * 1024) throw new Error('深度阅读暂时接受不超过 50 MB 的 PDF');
+        if (binary.length > 50 * 1024 * 1024) throw new SafeReadingError('深度阅读暂时接受不超过 50 MB 的 PDF');
       }
       const filename = path.replace(/\\/g, '/').split('/').pop();
       const result = await post(base + '/api/reading/documents', { fileName: filename, fileContent: win.btoa(binary),
@@ -107,10 +111,11 @@ var BodyOnlyBridge = (() => {
       readingWindows.set(started.job.id, view);
       view.progress.setText('已开始深度阅读，完成后会自动保存为论文子笔记');
       view.progress.setProgress(started.job.progress || 0);
-    } catch (_) {
+    } catch (error) {
       // Never display an HTTP exception that may contain the API request body.
-      if (view) { view.progress.setError(); view.progress.setText('阅读未能启动，请检查共享 API 和增强服务'); view.popup.startCloseTimer(12000); }
-      win.alert('无法开始深度阅读。请确认阅读 API 支持完整 PDF，检索 API 支持联网工具，PDF 已有父条目且资料库可编辑，并且 Kinbo 的服务器地址指向 0.3.3 或更新版本的增强服务。');
+      const message = error instanceof SafeReadingError ? error.message : '无法连接或读取增强服务，请检查 Kinbo 的服务器地址、后台版本和本机网络';
+      if (view) { view.progress.setError(); view.progress.setText(message); view.popup.startCloseTimer(12000); }
+      win.alert('无法开始深度阅读。' + message);
     }
     finally { if (acquired) preparing.delete(preparingKey); }
   }

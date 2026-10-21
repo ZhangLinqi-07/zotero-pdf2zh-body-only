@@ -5,18 +5,18 @@
   "babeldoc": "0.6.2",
   "files": {
     "index.html": {
-      "after_sha256": "bfdf7b0277e132a77ed3310806f9c9145a00ad54dfd4fd6cbac7ef623871918c",
+      "after_sha256": "de46337348098291626dff679c2256c955720814284fab18f44387cf68ef95c9",
       "before_sha256": "0aa5ef966b1afd8c04fc19d9d115762f43be91859b45ddd973101c0c774eca3d"
     },
     "prompts/deep_reading_zh.txt": {
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "860b217450be670b03e4c71fbe8214d9fb89d90a7aac7cb5f9623eed45678369",
+      "after_sha256": "ac4ae72376a4fac118c8a0ef4c36ab91ec565f923576a29451daa2bd37b57f78",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/deep_reading.py": {
-      "after_sha256": "4592890f3708aef59645221a32b0f47b665481aac2c8883f76cdca1b9b7d9305"
+      "after_sha256": "7c745eea2858c3ac944185659fd271acddddbf9cf2e00036cb5a472f5a198a57"
     },
     "utils/environment_lifecycle.py": {
       "after_sha256": "ca95ad449599a5027d7cc21d18f753821840c3741e1bbb9e7eb895bd24418bfb",
@@ -30,16 +30,22 @@
       "after_sha256": "d1b25bf3e94eb832d35ff7e9644c367c37f15c7c60b106d287c5fabfc72e4154"
     },
     "utils/layout_preservation.py": {
-      "after_sha256": "1530205d73eae18eb344de703d30001ea4ac25f8a743ef14ffd877f692c5f54e"
+      "after_sha256": "4a67b01888e654cb005ef14e6d6071a8c004858ed4224835c0bd8b66eaf66d71"
+    },
+    "utils/page_images.py": {
+      "after_sha256": "ee600d5b1f0046701e6db0082bf77ee8e91b2ffa05915ab76bddc5ecdb846b34"
     },
     "utils/section_skip.py": {
       "after_sha256": "36511bd23b06870625be44c0274de1dd955c8563eb25ef6f845c4e06024e4af1"
     },
     "utils/section_skip_runtime.py": {
-      "after_sha256": "0e4d3df04e8975409a7bc71365a5ee0587efdd23c13e0635561bcc1cb4ff211f"
+      "after_sha256": "824d5de18b184eafbbb92436f7a981d9a9b25c9897eb172212d673ec4263d3be"
     },
     "utils/shared_api.py": {
-      "after_sha256": "d52fd968d02f0994f77fe5c65bcaf4f01410b04102df200120a494b179ebb02f"
+      "after_sha256": "06a51509b46e281bb51a15dd8839b4a8c011455f51429839c0300ad335fdd195"
+    },
+    "utils/translation_coverage.py": {
+      "after_sha256": "efe2adfc8ed0bc1471419bc797c04db369af08ecd7fec2b396e8269402975cc0"
     },
     "utils/web_research.py": {
       "after_sha256": "155ded28df6df9b7f833617d3f7ab4faf3fa40c5e1c0bfb6e931e9cd7a8b51ae"
@@ -48,7 +54,7 @@
       "after_sha256": "03cd3f05a6f7f5a34d87333d00a23372a747bd47bb9c021bfae036858e418ddb"
     },
     "web/reading.js": {
-      "after_sha256": "9c906b55907d3b17ad981e23a53b3e97940d3f94b5dae706cffdeb0af778db8c"
+      "after_sha256": "030e77a8fee1ddb88e41fb7ac7f3b76a9cee2863f7e7a9330a085bc8ea88104d"
     },
     "web/vendor/dompurify-LICENSE-0.txt": {
       "after_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"

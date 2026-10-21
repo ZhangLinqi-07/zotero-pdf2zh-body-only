@@ -22,6 +22,7 @@ from utils.layout_preservation import prepare_layout_command, save_layout_settin
 
 calls = []
 NORMAL = '这是一段保留双栏版式的正文译文，研究结论需要结合假设和证据解释。'
+MISSING_MODE = 'none'
 
 
 class MockAPI(BaseHTTPRequestHandler):
@@ -34,9 +35,15 @@ class MockAPI(BaseHTTPRequestHandler):
         calls.append(prompt)
         if '## Here is the input:' in prompt:
             rows = json.loads(prompt.rsplit('## Here is the input:', 1)[1].strip())
-            output = json.dumps([{'id': row['id'], 'output': NORMAL * (60 if 'OVERSIZE' in str(row) else 1) + ('续页完整结尾标记' if 'OVERSIZE' in str(row) else '')} for row in rows], ensure_ascii=False)
+            output = json.dumps([{'id': row['id'], 'output': row['input'] if MISSING_MODE != 'none' and 'Scientific claims' in str(row) else NORMAL * (60 if 'OVERSIZE' in str(row) else 1) + ('续页完整结尾标记' if 'OVERSIZE' in str(row) else '')} for row in rows], ensure_ascii=False)
         else:
             output = NORMAL * (60 if 'OVERSIZE' in prompt else 1) + ('续页完整结尾标记' if 'OVERSIZE' in prompt else '')
+            if MISSING_MODE != 'none' and 'Scientific claims' in prompt:
+                source_text = prompt.rsplit('Now translate the following text:', 1)[-1].strip()
+                if MISSING_MODE == 'permanent' or '[KINBO_COVERAGE_REPAIR]' not in prompt:
+                    output = source_text
+                else:
+                    output = NORMAL + ''.join(re.findall(r'\{v\d+\}', source_text))
         body = json.dumps({'id': 'local-layout-test', 'object': 'chat.completion', 'created': 0,
                            'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': output}, 'finish_reason': 'stop'}],
                            'usage': {'prompt_tokens': 10, 'completion_tokens': 10, 'total_tokens': 20}}).encode()
@@ -84,11 +91,14 @@ def fixture(folder, font_file, font_number):
 
 
 def main():
+    global MISSING_MODE
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir')
     parser.add_argument('--font', default='C:/Windows/Fonts/cambria.ttc')
     parser.add_argument('--font-number', type=int, default=1)
+    parser.add_argument('--missing-mode', choices=('none', 'recover', 'permanent'), default='none')
     options = parser.parse_args()
+    MISSING_MODE = options.missing_mode
     folder = Path(options.output_dir or tempfile.mkdtemp(prefix='body-only-layout-')).resolve()
     folder.mkdir(parents=True, exist_ok=True)
     source, rectangles = fixture(folder, Path(options.font), options.font_number)
@@ -127,7 +137,21 @@ openai_compatible_timeout = "15"
         result = subprocess.run(command, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=180)
     api.shutdown()
     (folder / 'mock-prompts.json').write_text(json.dumps(calls, ensure_ascii=False), encoding='utf-8')
+    audit_path = Path(command[command.index('--plan') + 1]).with_suffix('.coverage.json')
+    audit = json.loads(audit_path.read_text(encoding='utf-8'))
+    if MISSING_MODE == 'permanent':
+        assert result.returncode != 0, 'Untranslated body was incorrectly reported as success'
+        assert audit['status'] == 'failed' and audit['runs'][-1]['missing'] >= 1, audit
+        assert not list(folder.glob('*.dual.pdf')), 'Untranslated PDF should not be exported as a successful result'
+        result = {'success': True, 'expectedFailureDetected': True, 'coverageAudit': audit, 'externalApiCalls': 0}
+        (folder / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+        print(json.dumps(result, ensure_ascii=False))
+        return
     assert result.returncode == 0, f'Engine failed; inspect {folder / "engine.log"}'
+    assert audit['status'] == 'passed', audit
+    if MISSING_MODE == 'recover':
+        assert audit['runs'][-1]['repaired'] >= 1, audit
+        assert any('[KINBO_COVERAGE_REPAIR]' in call for call in calls)
     output = next(folder.glob('*.dual.pdf'))
     report = json.loads(Path(layout_plan['layoutReport']).read_text(encoding='utf-8'))
     joined = '\n'.join(calls)

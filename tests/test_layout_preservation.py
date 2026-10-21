@@ -39,7 +39,7 @@ class LayoutTests(unittest.TestCase):
             self.assertIn('--no-remove-non-formula-lines', command)
             save_layout_settings(folder, {'preserveColumns': False, 'mathMode': 'off'})
             original = ['pdf2zh_next', 'paper.pdf']
-            self.assertEqual(prepare_layout_command(original, folder, 'paper.pdf'), original)
+            self.assertIn('--zotero-section-skip-plan', prepare_layout_command(original, folder, 'paper.pdf'))
 
 
 if __name__ == '__main__':

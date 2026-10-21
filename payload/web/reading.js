@@ -25,18 +25,18 @@
       const report = result.lastReport;
       $('layoutStatus').textContent = report
         ? `最近一次保护了 ${report.protectedFormulaParagraphs} 个公式段落，${report.compactInlineParagraphs || 0} 个短文本已在原位重排，${report.continuedParagraphs ?? (report.continuations || []).length} 个段落使用完整译文续页。`
-        : '整页对照保留原有栏布局。公式保护会优先保留公式位置，无法安全排入的段落保留原文。';
+        : '整页对照保留原有栏布局。公式保护优先保留公式位置，无法排入的译文使用完整译文续页。';
     } catch (error) { $('layoutStatus').textContent = error.message; }
   }
   async function saveLayout() {
     try {
       await api('/api/layout-settings', post({ preserveColumns: $('preserveColumns').checked, mathMode: $('mathMode').value }));
-      $('layoutStatus').textContent = '已保存，之后发起的翻译会使用这些排版选项。公式优先模式可能保留含较多公式的整段英文。';
+      $('layoutStatus').textContent = '已保存，之后发起的翻译会使用这些排版选项。含公式的正文仍需翻译，排版溢出使用完整译文续页。';
     } catch (error) { $('layoutStatus').textContent = error.message; }
   }
   async function loadConfig() {
     const [data, capabilities] = await Promise.all([api('/api/reading/config'), api('/api/capabilities')]);
-    searchReady = capabilities.readingSearch === true;
+    searchReady = capabilities.readingSearch === true && capabilities.fullPageImageReading === true;
     const select = $('readingProvider'), previous = select.value;
     select.replaceChildren();
     for (const profile of data.profiles) option(select, `${profile.label} · ${profile.model}`, profile.id);
@@ -49,10 +49,10 @@
     option(search, '自动复用阅读 API', 'auto');
     for (const profile of data.profiles) option(search, `${profile.label} · ${profile.model}`, profile.id);
     search.value = data.options.searchProvider || 'auto';
-    $('sharedApiStatus').textContent = !searchReady ? '当前后台尚未加载联网阅读功能，请重启到 0.3.3 或更新版本。无需重新填写 API。' : configured
+    $('sharedApiStatus').textContent = !searchReady ? '当前后台尚未加载全部页面图像阅读，请重启到 0.3.6 或更新版本。无需重新填写 API。' : configured
       ? '正在复用翻译 API，深度阅读无需再次填写密钥。'
       : '免费翻译仍可使用。深度阅读需要你配置自己的 API。';
-    for (const name of ['pdfProtocol', 'requestTimeout', 'inputPrice', 'outputPrice', 'unitCny']) {
+    for (const name of ['pdfProtocol', 'documentMode', 'requestTimeout', 'inputPrice', 'outputPrice', 'unitCny']) {
       $(name).value = data.options[name] ?? '';
     }
     const compatible = data.profiles.find(p => p.id === 'openaicompatible');
@@ -61,7 +61,7 @@
     startState(); describeDocument();
   }
   async function saveConfig() {
-    const data = { pdfProtocol: $('pdfProtocol').value, requestTimeout: Number($('requestTimeout').value), searchProvider: $('readingSearchProvider').value };
+    const data = { pdfProtocol: $('pdfProtocol').value, documentMode: $('documentMode').value, requestTimeout: Number($('requestTimeout').value), searchProvider: $('readingSearchProvider').value };
     for (const name of ['inputPrice', 'outputPrice', 'unitCny']) data[name] = $(name).value.trim() === '' ? null : Number($(name).value);
     const endpoint = $('sharedEndpoint').value.trim(), model = $('sharedModel').value.trim(), key = $('sharedKey').value.trim();
     if (endpoint || model || key) Object.assign(data, { endpoint, model, apiKey: key });
@@ -73,7 +73,9 @@
   }
   function describeDocument() {
     if (!currentDocument) { $('readingDocumentInfo').textContent = '选择 PDF 后，原始文件将完整提交给支持 PDF 的 API。'; return; }
-    $('readingDocumentInfo').textContent = `${currentDocument.filename}，共 ${currentDocument.pages} 页。完整 PDF 与阅读提示词一起提交，由 API 直接理解文字和图表。输出长度与思考强度采用接口默认设置，达到输出上限后自动续写。`;
+    const mode = $('documentMode').value;
+    const input = mode === 'images' ? '全部页面转为整页图像后与完整提示词一次提交。' : mode === 'pdf' ? '完整 PDF 与阅读提示词一起提交。' : '自动模式下 DeepSeek Flash 使用全部页面图像，其余 API 使用完整 PDF。';
+    $('readingDocumentInfo').textContent = `${currentDocument.filename}，共 ${currentDocument.pages} 页。${input}不选页或分段摘要。输出长度与思考强度采用接口默认设置，达到输出上限后自动续写。`;
   }
   function selectDocument(documentInfo) {
     currentDocument = documentInfo; describeDocument(); startState();
@@ -169,6 +171,7 @@
   }
   window.addEventListener('load', async () => {
     $('preserveColumns').addEventListener('change', saveLayout); $('mathMode').addEventListener('change', saveLayout);
+    $('documentMode').addEventListener('change', describeDocument);
     $('saveSharedApi').addEventListener('click', saveConfig); $('refreshSharedApi').addEventListener('click', () => loadConfig().catch(error => status(error.message, 'error')));
     $('readingFile').addEventListener('change', event => upload(event.target.files[0]));
     $('readingExisting').addEventListener('change', event => readExisting(event.target.value));

@@ -2,11 +2,11 @@
 
 让 Zotero 中的 PDF 翻译自动跳过参考文献与附录，保留双栏和数学公式，并用同一 API 做深度结构化阅读。
 
-本项目基于 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh) 提供章节识别、深度阅读与版式保护。**新用户可以直接下载本仓库安装，无需预先安装原版服务。** Kinbo 深度阅读直接提交完整 PDF 与提示词，达到接口输出上限后自动续写，完成后自动生成论文子笔记。已有原版的用户也可以使用增强补丁安装方式。
+本项目基于 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh) 提供章节识别、深度阅读与版式保护。**新用户可以直接下载本仓库安装，无需预先安装原版服务。** Kinbo 深度阅读支持完整 PDF 或全部页面图像与提示词一次提交，达到接口输出上限后自动续写，完成后自动生成论文子笔记。已有原版的用户也可以使用增强补丁安装方式。
 
 ## Windows 新用户直接安装
 
-先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.5 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
+先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.6 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
 
 安装器面向 Windows x64，会从官方发布地址下载并校验 uv、原版服务和原版 XPI，准备独立的 Python 3.12 环境，安装兼容的翻译引擎，再应用本项目的章节跳过功能。无需提前安装 Python 或手动配置环境变量。首次安装需要联网下载较多依赖，请等到安装完成提示出现。
 
@@ -94,7 +94,15 @@ python install.py --server-dir "你的服务目录" --server-python "原服务�
 
 检索结果与原始 PDF、完整提示词一起交给阅读模型。论文不在本地切分、摘录或先生成摘要，图表、公式与扫描页交给支持 PDF 的模型解析。笔记区分 PDF 证据和外部证据，自动保存工具返回的来源链接、检索时间与检索用量。信息无法核实时仍须标为未核实。Gemini 和 Responses 的阅读请求也保留原生搜索工具，续写期间取得的新来源一并保存。
 
-Gemini 模型自动使用原生 generateContent PDF 输入，OpenAI 官方自动使用 Responses，其他模型默认使用 Chat Completions PDF 文件输入，也可在网页选择 Responses PDF 格式。三种格式均发送完整原始 PDF，说明见 [Gemini 文档](https://ai.google.dev/gemini-api/docs/generate-content/document-processing) 与 [OpenAI 文档](https://developers.openai.com/api/docs/guides/file-inputs)。DeepSeek 官方当前不支持完整 PDF 文件输入，可作为检索 API 配合另一套支持 PDF 的阅读 API。中转接口不支持所选格式时明确失败，不会退回文本摘要。
+阅读选项提供自动、完整原始 PDF、全部页面图像三种输入模式。自动模式下，DeepSeek 官方 `deepseek-flash` 使用全部页面图像，其余 API 使用原始 PDF。图像模式将每一页渲染为 144 dpi 整页 PNG，保留页码顺序，与完整提示词一次提交，不选页或分段摘要。每次续写仍携带全部页面和已有对话。笔记会标明实际输入方式和页数，图像中的细小公式识别受模型视觉能力影响。
+
+DeepSeek 官方不接受 PDF 文件输入，但 Flash 支持图像，见 [DeepSeek 视觉文档](https://api-docs.deepseek.com/guides/vision/)。搜索使用同一密钥的 Search API，Flash 阅读请求不携带它会忽略的原生 web_search 工具。插件不会替换用户选择的模型。官方图像模式最多 600 页，并检查单页尺寸及序列化请求的 48 MiB 限制。超限时明确停止，未通过本机预检时不会调用搜索或阅读 API。若搜索证据或续写历史使完整请求超限，则该阅读请求不会发送，已有笔记保留。上下文超限和服务商拒绝输入也会明确失败。
+
+Gemini 模型自动使用原生 generateContent，OpenAI 官方自动使用 Responses，其他模型默认使用 Chat Completions，也可手动选择协议。原始 PDF 输入说明见 [Gemini 文档](https://ai.google.dev/gemini-api/docs/generate-content/document-processing) 与 [OpenAI 文档](https://developers.openai.com/api/docs/guides/file-inputs)。中转接口不支持所选格式时明确失败，不会退回文本摘要。Zotero 中的启动错误会显示具体的本地校验原因，原始 HTTP 异常及凭据不会展示。
+
+升级至 v0.3.6 时需要同时更新增强后台和 XPI，并重新启动后台。已有翻译 API 与 Zotero 资料库不需要重新配置。只安装新 XPI 而继续运行旧后台，会得到明确的后台版本提示。
+
+翻译引擎完成模型阶段后会检查识别到的较长英文正文，检测空译文、原文照返和中文译文中残留的长英文句子，对异常段落绕过旧缓存补译一次，并保留公式占位符。补译仍失败则记录页码并使任务失败，避免把整段英文当作已完成译文。参考文献和附录按原有跳过设置处理。此检查针对明显漏译，不能代替逐句语义校对，也无法覆盖 PDF 解析阶段完全没有识别出的文字。
 
 插件不发送输出 token 上限、思考预算或思考强度参数，旧版分段和 token 设置不再生效。网络等待默认不设置超时，可自行指定秒数。模型与平台自身仍有文件大小、上下文和单次输出边界，本地接受的 PDF 最大为 50 MB。
 

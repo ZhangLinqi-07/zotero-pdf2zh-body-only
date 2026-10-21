@@ -391,13 +391,14 @@
             <details class="reading-advanced">
               <summary>PDF 接口与费用估算</summary>
               <div class="reading-grid">
+                <label class="reading-field">论文输入模式<select id="documentMode"><option value="auto">自动选择，DeepSeek Flash 使用全部页面图像</option><option value="pdf">完整原始 PDF</option><option value="images">全部页面图像，一次提交</option></select></label>
                 <label class="reading-field">PDF 接口格式<select id="pdfProtocol"><option value="auto">自动选择</option><option value="gemini">Gemini 原生 PDF</option><option value="chat">OpenAI 兼容 PDF</option><option value="responses">Responses PDF</option></select></label>
                 <label class="reading-field">网络等待超时秒数，0 表示不设超时<input id="requestTimeout" type="number" min="0" step="1" value="0"></label>
                 <label class="reading-field">每百万输入 token 的美元额度<input id="inputPrice" type="number" min="0" step="any" placeholder="可留空"></label>
                 <label class="reading-field">每百万输出 token 的美元额度<input id="outputPrice" type="number" min="0" step="any" placeholder="可留空"></label>
                 <label class="reading-field">每美元额度实付人民币<input id="unitCny" type="number" min="0" step="any" placeholder="按自己的充值比例填写"></label>
               </div>
-              <p>完整 PDF 直接交给 API，不在本地切分或摘要。插件不设置思考强度或输出 token 上限，达到接口输出上限后自动续写。Gemini 模型自动使用原生 PDF 接口，OpenAI 官方使用 Responses。检索工具费用另计，填写单价只用于阅读生成的 token 估算。</p>
+              <p>可直接提交完整 PDF，也可将全部页面转换为 144 dpi 整页 PNG 后一次提交，不选页或分段摘要。图像模式的细小公式识别受模型视觉能力影响。插件不设置思考强度或输出 token 上限，达到接口输出上限后保留全部输入自动续写。DeepSeek Flash 自动使用全部页面图像及同一密钥的搜索接口。超出接口图像数量、请求大小或上下文限制时明确报错。检索费用另计，填写单价只用于阅读生成的 token 估算。</p>
             </details>
             <button class="reading-button secondary" id="saveSharedApi">保存共享配置与阅读选项</button>
           </section>
