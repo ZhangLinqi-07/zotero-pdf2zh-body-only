@@ -8,4 +8,6 @@ payload 目录包含修改后的服务文件，以及新加入的章节识别和
 
 本项目依据 GNU Affero General Public License version 3 发布，许可证文本见 LICENSE。原程序、原作者和其他依赖的权利与声明继续适用。
 
+v0.2.0 新增从空目录安装的引导程序。原版服务与 XPI 从 guaguastandup/zotero-pdf2zh 的 v4.1.7 发布页下载，XPI 不作修改，对应完整源代码可从 https://github.com/guaguastandup/zotero-pdf2zh/tree/v4.1.7 获取。uv 从 astral-sh/uv 的 0.13.4 发布页下载，源代码、MIT 和 Apache-2.0 许可证见 https://github.com/astral-sh/uv/tree/0.13.4 。下载内容不提交到本源码仓库。
+
 pdf2zh_next 与 BabelDOC 是独立安装的依赖，其源代码分别可在 https://github.com/PDFMathTranslate/PDFMathTranslate-next 和 https://github.com/funstory-ai/BabelDOC 获取。本包不包含这些依赖的模型权重或运行环境。

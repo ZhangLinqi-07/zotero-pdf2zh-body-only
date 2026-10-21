@@ -1,0 +1,19 @@
+{
+  "upstream_version": "4.1.7",
+  "uv_version": "0.13.4",
+  "server": {
+    "name": "server-v4.1.7.zip",
+    "url": "https://github.com/guaguastandup/zotero-pdf2zh/releases/download/v4.1.7/server.zip",
+    "sha256": "118c7f37844ebeb67f7c9f018421ef1ab72e25e42ee7fd5b83a11c731d4b666b"
+  },
+  "plugin": {
+    "name": "zotero-pdf-2-zh-v4.1.7.xpi",
+    "url": "https://github.com/guaguastandup/zotero-pdf2zh/releases/download/v4.1.7/zotero-pdf-2-zh.xpi",
+    "sha256": "e793d3ad169d0d5afaecfa6e6c936afd0f479f91fab99a92cafbf9f3bb89afec"
+  },
+  "uv_windows_x64": {
+    "name": "uv-x86_64-pc-windows-msvc.zip",
+    "url": "https://releases.astral.sh/github/uv/releases/download/0.13.4/uv-x86_64-pc-windows-msvc.zip",
+    "sha256": "ccec7508a07d9933d7cb1261880633efcf1f30d6e6eddab21823f1dae6f23225"
+  }
+}

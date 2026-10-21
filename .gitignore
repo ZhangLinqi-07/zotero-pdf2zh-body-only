@@ -17,3 +17,11 @@ last_section_plan.json
 *.log
 .DS_Store
 Thumbs.db
+.bootstrap/
+app/
+.downloads/
+.server-venv/
+.tools/
+runtime/
+zotero-pdf2zh-next-venv/
+.body-only-bootstrap.json

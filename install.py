@@ -13,7 +13,7 @@ import tempfile
 import uuid
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 STATE = ".body-only-installed.json"
 
 
@@ -92,9 +92,10 @@ def install(server_dir, server_python=None, force=False, dry_run=False):
             {"server_python": select_python(server, server_python)}, indent=2
         ).encode("utf-8"),
         "start-body-only.cmd": (
-            '@echo off\r\npython "%~dp0run_body_only.py" --server-dir "%~dp0."\r\n'
+            '@echo off\r\nchcp 65001 >nul\r\n"' + select_python(server, server_python).replace('%', '%%')
+            + '" "%~dp0run_body_only.py" --server-dir "%~dp0." %*\r\n'
             'if errorlevel 1 pause\r\n'
-        ).encode("ascii"),
+        ).encode("utf-8"),
     }
     for relative, content in generated.items():
         target = inside(server, relative)

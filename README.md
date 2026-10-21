@@ -2,23 +2,53 @@
 
 让 Zotero 中的 PDF 翻译自动跳过参考文献与附录，同时保留这些章节的原文页面。
 
-本项目是 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh) 的第三方本地服务增强包，适用于已经安装并能正常使用原插件的用户。先安装原插件与服务，再应用本补丁。它提供章节识别、交界页段落过滤、本地控制页开关、安装前检查和文件恢复。
+本项目基于 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh) 提供章节识别、交界页段落过滤和本地控制页开关。**从 v0.2.0 起，新用户可以直接下载本仓库安装，无需预先安装原版服务。** 已有原版的用户也可以继续使用增强补丁安装方式。
+
+## Windows 新用户直接安装
+
+先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.2.0 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
+
+安装器面向 Windows x64，会从官方发布地址下载并校验 uv、原版服务和原版 XPI，准备独立的 Python 3.12 环境，安装兼容的翻译引擎，再应用本项目的章节跳过功能。无需提前安装 Python 或手动配置环境变量。首次安装需要联网下载较多依赖，请等到安装完成提示出现。
+
+安装完成后，本地服务会启动。到 Zotero 的插件管理窗口，使用从文件安装插件功能，选择生成在 **app** 文件夹中的 **zotero-pdf-2-zh-v4.1.7.xpi**。这个 XPI 保留上游原版，兼容范围由它的清单声明为 Zotero 7 至 10。
+
+在 Zotero 的 PDF2zh 设置里，将 Python 服务器地址改成 **http://127.0.0.1:8891**，翻译引擎选择 **pdf2zh_next**，再选择免费服务或填写自己的 API。之后照常右键 PDF 进行翻译或生成双语对照。原版插件默认的 8890 地址需要手动改成这里的 8891。
+
+以后双击 **app/start-body-only.cmd** 即可启动服务，翻译时保持启动窗口开启。浏览器打开 **http://127.0.0.1:8891/** 可以切换跳过参考文献与附录。请保留整个解压目录，安装后移动目录可能使虚拟环境中的路径失效。
+
+首次翻译还可能下载 BabelDOC 的字体和文档分析模型，这些资源不包含在源码包中。安装失败时可以重新运行安装器，它会复用已校验的下载和已经创建的专用环境。翻译过程中请等待任务结束再重新运行安装器。
+
+如果 Python 包下载较慢，可以在解压目录打开终端，明确选择中科大镜像。默认使用 PyPI。
+
+~~~console
+install-windows.cmd --index-url https://mirrors.ustc.edu.cn/pypi/simple
+~~~
+
+## 已有 Python 和 uv 的新用户
+
+在空目录中安装服务，可直接运行下面的命令。执行 setup_fresh.py 的 Python 需要 3.10 或更新版本，安装器会另行准备运行服务所用的 Python 3.12。uv 可以从 [官方安装说明](https://docs.astral.sh/uv/getting-started/installation/) 获取。
+
+~~~console
+python setup_fresh.py --install-dir "你的新安装目录" --start
+~~~
+
+Windows 已验证新目录安装和运行流程。其他系统可以使用 Python 入口，跨平台安装逻辑有自动测试，完整翻译环境仍需自行确认。安装器拒绝向已有个人文件的非托管目录安装，已有原版服务请使用下文的 install.py。
 
 ## 下载与兼容范围
 
 从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载名称以 zotero-pdf2zh-body-only 开头的 ZIP，解压后进入包含 install.py 的文件夹。
 
-首个预览版本支持 Zotero PDF2zh 服务端 **4.1.7**、翻译引擎 **pdf2zh_next 2.9.0** 和 **BabelDOC 0.6.2**。原版安装文件可从 [上游 v4.1.7 发布页](https://github.com/guaguastandup/zotero-pdf2zh/releases/tag/v4.1.7) 获取。安装脚本需要 Python 3.10 或更新版本，原服务与翻译环境推荐沿用 Python 3.12。Windows 已验证完整模拟翻译流程，跨平台安装逻辑另有自动测试。
+当前预览版本支持 Zotero PDF2zh 服务端 **4.1.7**、翻译引擎 **pdf2zh_next 2.9.0** 和 **BabelDOC 0.6.2**。新安装器自动锁定这些版本，并安装 **bitstring>=4.3,<5** 修复 BitStream 兼容问题。下载清单和 SHA256 保存在 [downloads.json](downloads.json)，上游来源为 [v4.1.7 发布页](https://github.com/guaguastandup/zotero-pdf2zh/releases/tag/v4.1.7)。
 
 本包增强 Python 托管的翻译环境。独立 winexe 模式暂不支持。其他版本的兼容性尚未验证，安装器会检查版本与原始文件，遇到未知改动时先停止。
 
-翻译引擎通常位于独立的托管虚拟环境，版本检查以那个环境为准。请先确认原版能够正常翻译。若 pdf2zh_next 2.9.0 因 bitstring 5 缺少 BitStream 而无法启动，可在翻译引擎的 Python 环境中安装兼容版本。这个处理对应 [bitstring 的版本迁移说明](https://bitstring.readthedocs.io/en/stable/upgrading_to_version_5.html)。
+翻译引擎通常位于独立的托管虚拟环境，版本检查以那个环境为准。对已有原版的安装，请先确认原版能够正常翻译。若 pdf2zh_next 2.9.0 因 bitstring 5 缺少 BitStream 而无法启动，可在翻译引擎的 Python 环境中安装兼容版本。这个处理对应 [bitstring 的版本迁移说明](https://bitstring.readthedocs.io/en/stable/upgrading_to_version_5.html)。
 
 ~~~console
 "翻译引擎环境的Python可执行文件" -m pip install "bitstring>=4.3,<5"
 ~~~
 
-## 安装
+## 已有原版服务的补丁安装
 
 找到原版服务的目录，也就是同时包含 server.py、utils 和 config 的文件夹。在本包目录运行安装预览，将下面的目录占位符换成自己的实际路径。
 
@@ -50,7 +80,7 @@ python install.py --server-dir "你的服务目录" --server-python "原服务�
 python run_body_only.py --server-dir "你的服务目录"
 ~~~
 
-Windows 用户也可以双击目标服务目录中的 start-body-only.cmd，前提是 Python 命令已在 PATH 中。启动器使用独立端口，不会停止已有服务，日志位于服务目录中的 body-only-logs。
+Windows 用户也可以双击目标服务目录中的 start-body-only.cmd，脚本会调用安装时选定的 Python。启动器使用独立端口，日志位于服务目录中的 body-only-logs。
 
 打开 Zotero 的 PDF2zh 设置，将 Python 服务器地址设为 **http://127.0.0.1:8891**，翻译引擎选择 **pdf2zh_next**。之后照常右键原始 PDF，选择翻译 PDF 或双语对照。
 
@@ -88,11 +118,11 @@ python run_body_only.py --server-dir "你的服务目录" --port 8892
 python restore.py --server-dir "你的服务目录"
 ~~~
 
-上游更新可能覆盖本补丁。升级前可先恢复，待本项目发布支持新版本的增强包后再安装。请先阅读安装器报错，再决定是否使用显式覆盖选项。
+已有 v0.1.0 增强包的用户，先用 restore.py 恢复原文件，再用新版 install.py 安装。个人 API 配置与翻译结果不参与恢复。上游更新可能覆盖本补丁，升级前可先恢复，待本项目发布支持新版本的增强包后再安装。请先阅读安装器报错，再决定是否使用显式覆盖选项。
 
 ## 测试
 
-本地单元测试涵盖章节标题、同页正文与文献、双栏阅读顺序、异常后的内容恢复、开关保存，以及安装、重复安装、恢复和个人文件保留。
+本地单元测试涵盖章节标题、同页正文与文献、双栏阅读顺序、异常后的内容恢复、开关保存，以及安装、重复安装、恢复和个人文件保留。新安装器另有下载校验、ZIP 路径检查、个人目录保护、新安装与重试测试。
 
 ~~~console
 python -m pip install -r requirements-test.txt
