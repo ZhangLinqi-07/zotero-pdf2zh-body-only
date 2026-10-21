@@ -254,6 +254,28 @@ class StructuredReadingTests(unittest.TestCase):
         self.assertNotIn('noteState', job)
         self.assertEqual(self.manager.pending_notes('a' * 32), [])
 
+    def test_double_click_reuses_running_reading_without_a_second_api_call(self):
+        self.configured()
+        first, target = self.bound_document()
+        second = self.manager.add_document(self.manager.path(first['id'], '.pdf').read_bytes(), 'same-paper.pdf', target)
+        entered, release = threading.Event(), threading.Event()
+        def model(*args):
+            entered.set()
+            release.wait(4)
+            return 'Completed report', {}, 'stop'
+        with patch.object(shared_api, 'chat', side_effect=model) as call:
+            initial = self.client.post('/api/reading/jobs', json={'documentId': first['id']}).json['job']
+            self.assertTrue(entered.wait(2))
+            try:
+                repeat = self.client.post('/api/reading/jobs', json={'documentId': second['id']}).json['job']
+                self.assertEqual(initial['id'], repeat['id'])
+            finally:
+                release.set()
+                self.wait_job(initial['id'])
+                if 'repeat' in locals():
+                    self.wait_job(repeat['id'])
+        self.assertEqual(call.call_count, 1)
+
 
 if __name__ == '__main__':
     unittest.main()

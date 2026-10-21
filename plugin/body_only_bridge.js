@@ -4,6 +4,22 @@ var BodyOnlyBridge = (() => {
   const entries = new Map();
   const prefix = 'extensions.zotero.pdf2zh.';
   let active = false, timer = null, syncing = false, noteTools = null;
+  const readingWindows = new Map(), preparing = new Set();
+  function progressWindow(text) {
+    const popup = new Zotero.ProgressWindow({ closeOnClick: true });
+    popup.changeHeadline('Kinbo 深度结构化阅读');
+    const progress = new popup.ItemProgress('chrome://zotero/skin/16/universal/item-type-note.svg', text);
+    progress.setProgress(0); popup.show();
+    return { popup, progress };
+  }
+  function finishWindow(jobID, text, error = false) {
+    const view = readingWindows.get(jobID);
+    if (!view) return;
+    view.progress.setText(text);
+    if (error) view.progress.setError(); else view.progress.setProgress(100);
+    view.popup.startCloseTimer(error ? 12000 : 8000);
+    readingWindows.delete(jobID);
+  }
   const supported = new Set(['openailiked', 'openaicompatible', 'openai', 'gemini', 'deepseek', 'siliconflow', 'modelscope', 'zhipu', 'grok', 'groq']);
   function preference(name) { return Zotero.Prefs.get(prefix + name, true); }
   function clientID() {
@@ -57,11 +73,17 @@ var BodyOnlyBridge = (() => {
     return response.profile.id;
   }
   async function openReading(win) {
+    let view, preparingKey, acquired = false;
     try {
       const base = baseURL();
       const capability = await Zotero.HTTP.request('GET', base + '/api/capabilities', { responseType: 'json', timeout: 10000 });
-      if (!capability.response?.zoteroNotes) throw new Error('请先启动 0.3.1 或更新版本的增强服务');
+      if (!capability.response?.zoteroNotes || !capability.response?.directReading) throw new Error('请先启动 0.3.1 或更新版本的增强服务');
       const { item, parent, path } = await selectedPDF(win);
+      preparingKey = parent.libraryID + '/' + item.key;
+      if (preparing.has(preparingKey)) return;
+      preparing.add(preparingKey);
+      acquired = true;
+      view = progressWindow('正在准备论文并读取已有翻译 API');
       const provider = await syncAPI(base);
       const io = typeof IOUtils !== 'undefined' ? IOUtils : win.IOUtils;
       let binary;
@@ -79,11 +101,18 @@ var BodyOnlyBridge = (() => {
       const filename = path.replace(/\\/g, '/').split('/').pop();
       const result = await post(base + '/api/reading/documents', { fileName: filename, fileContent: win.btoa(binary),
         zoteroTarget: { clientID: clientID(), libraryID: parent.libraryID, parentKey: parent.key, attachmentKey: item.key, title: parent.getField('title') } });
-      Zotero.launchURL(base + '/?reading=' + encodeURIComponent(result.document.id) + (provider ? '&api=' + encodeURIComponent(provider) : '') + '#reading');
+      const started = await post(base + '/api/reading/jobs', { documentId: result.document.id, provider: provider || undefined, vision: false });
+      const prior = readingWindows.get(started.job.id);
+      if (prior) prior.popup.close();
+      readingWindows.set(started.job.id, view);
+      view.progress.setText('已开始深度阅读，完成后会自动保存为论文子笔记');
+      view.progress.setProgress(started.job.progress || 0);
     } catch (_) {
       // Never display an HTTP exception that may contain the API request body.
-      win.alert('无法打开深度阅读。请确认 PDF 已有父条目且资料库可编辑，增强服务已启动，并且 PDF2zh 的服务器地址指向 0.3.1 或更新版本。也可以在服务控制页直接选择 PDF，但单独上传的文件无法自动关联 Zotero。');
+      if (view) { view.progress.setError(); view.progress.setText('阅读未能启动，请检查共享 API 和增强服务'); view.popup.startCloseTimer(12000); }
+      win.alert('无法开始深度阅读。请确认已配置自己的翻译 API，PDF 已有父条目且资料库可编辑，增强服务已启动，并且 PDF2zh 的服务器地址指向 0.3.1 或更新版本。');
     }
+    finally { if (acquired) preparing.delete(preparingKey); }
   }
   function tools() {
     if (!noteTools) {
@@ -122,9 +151,22 @@ var BodyOnlyBridge = (() => {
             await note.saveTx();
           }
           await post(base + '/api/reading/jobs/' + job.id + '/zotero-note', { clientID: identity, state: 'saved', noteKey: note.key });
+          if (!readingWindows.has(job.id)) readingWindows.set(job.id, progressWindow('阅读笔记已保存'));
+          finishWindow(job.id, (job.state === 'partial' ? '未完成的阅读稿已保存，请检查笔记中的提示' : '阅读完成，子笔记已保存') + ' · ' + parent.getField('title'));
         } catch (_) {
+          const view = readingWindows.get(job.id);
+          if (view) view.progress.setText('阅读完成，笔记暂未保存，正在等待可编辑的原论文条目');
           try { await post(base + '/api/reading/jobs/' + job.id + '/zotero-note', { clientID: identity, state: 'error' }); } catch (_) {}
         }
+      }
+      for (const [id, view] of readingWindows) {
+        try {
+          const response = await Zotero.HTTP.request('GET', base + '/api/reading/jobs/' + id, { responseType: 'json', timeout: 10000 });
+          const job = response.response.job;
+          if (['failed', 'interrupted'].includes(job.state)) finishWindow(id, job.message || '阅读未完成，请检查 API 和本地服务', true);
+          else if (job.noteState === 'saved') finishWindow(id, '阅读完成，子笔记已保存');
+          else { view.progress.setProgress(job.progress || 0); view.progress.setText(job.message || '正在深度阅读'); }
+        } catch (_) { view.progress.setText('等待本地服务恢复连接，已完成的结果会自动保存'); }
       }
     } catch (_) { /* Offline Zotero/server sessions retry without disturbing reading. */ }
     finally { syncing = false; }
@@ -168,6 +210,6 @@ var BodyOnlyBridge = (() => {
       for (const win of Zotero.getMainWindows()) addWindow(win);
       if (!active) { active = true; pollNotes(); }
     },
-    stop() { active = false; if (timer) Zotero.getMainWindow()?.clearTimeout(timer); timer = null; noteTools = null; for (const win of [...entries.keys()]) removeWindow(win); },
+    stop() { active = false; if (timer) Zotero.getMainWindow()?.clearTimeout(timer); timer = null; noteTools = null; for (const view of readingWindows.values()) view.popup.close(); readingWindows.clear(); for (const win of [...entries.keys()]) removeWindow(win); },
   };
 })();

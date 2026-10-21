@@ -143,7 +143,7 @@ class PDFTranslator:
         self.app.add_url_rule('/api/config', 'config', self.get_config)
         self.app.add_url_rule('/api/section-settings', 'section_settings', self.section_settings, methods=['GET', 'POST'])
         self.app.add_url_rule('/api/layout-settings', 'layout_settings', self.layout_settings, methods=['GET', 'POST'])
-        self.app.add_url_rule('/api/capabilities', 'capabilities', lambda: jsonify(status='success', version='0.3.1', deepReading=True, sharedAPI=True, fullPageCompare=True, zoteroNotes=True))
+        self.app.add_url_rule('/api/capabilities', 'capabilities', lambda: jsonify(status='success', version='0.3.1', deepReading=True, sharedAPI=True, fullPageCompare=True, zoteroNotes=True, directReading=True))
         self.app.add_url_rule('/body-only-assets/<path:filename>', 'body_only_assets', lambda filename: send_from_directory(os.path.join(root_path, 'web'), filename))
         self.reading = register_reading(self.app, root_path)
         # 新增：favicon 路由

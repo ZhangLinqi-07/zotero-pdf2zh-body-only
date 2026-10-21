@@ -205,10 +205,17 @@ class ReadingManager:
             raise ValueError("本次需要的分段调用超过 24 次，请增加上下文字符数或先拆分文档")
         job_id = uuid.uuid4().hex
         with self.lock:
+            target = document.get('zoteroTarget')
+            if target:
+                for existing in self.jobs.values():
+                    previous = existing.get('zoteroTarget', {})
+                    if (existing.get('state') == 'running' and existing.get('documentSha256') == document['sha256']
+                            and all(previous.get(k) == target[k] for k in ('clientID', 'libraryID', 'parentKey', 'attachmentKey'))):
+                        return dict(existing)
             self.jobs[job_id] = {"id": job_id, "documentId": document_id, "filename": document["filename"],
                                  "state": "running", "progress": 0, "message": "正在准备深度阅读",
                                  "model": profile.model, "provider": profile.label, "usage": {}, "apiCalls": 0,
-                                 "vision": bool(vision), "created": datetime.now(timezone.utc).isoformat()}
+                                 "vision": bool(vision), "documentSha256": document['sha256'], "created": datetime.now(timezone.utc).isoformat()}
             if document.get('zoteroTarget'):
                 self.jobs[job_id].update(zoteroTarget=document['zoteroTarget'], noteState='waiting')
         threading.Thread(target=self.work, args=(job_id, profile, document, options, chunks, vision), daemon=True).start()
