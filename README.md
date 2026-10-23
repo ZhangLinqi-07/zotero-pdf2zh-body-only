@@ -1,5 +1,8 @@
 # Zotero PDF2zh Body Only
 
+[![GitHub Stars](https://img.shields.io/github/stars/ZhangLinqi-07/zotero-pdf2zh-body-only?style=flat&logo=github&label=Stars)](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/stargazers)
+[![README views](https://hits.sh/github.com/ZhangLinqi-07/zotero-pdf2zh-body-only.svg?label=README%20views&color=4f46e5)](https://hits.sh/github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/)
+
 让 Zotero 中的 PDF 翻译自动跳过参考文献与附录，保留双栏和数学公式，并用同一 API 做深度结构化阅读。
 
 本项目基于 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh) 提供章节识别、深度阅读与版式保护。**新用户可以直接下载本仓库安装，无需预先安装原版服务。** Kinbo 深度阅读支持完整 PDF 或全部页面图像与提示词一次提交，达到接口输出上限后自动续写，完成后自动生成论文子笔记。已有原版的用户也可以使用增强补丁安装方式。
@@ -188,6 +191,20 @@ python tests/integration_layout.py --font "本机数学字体文件" --font-numb
 ~~~
 
 浏览器使用本地 vendored Marked、DOMPurify 和 MathJax 渲染笔记，渲染时无需访问外部脚本或字体服务。版本、下载来源和校验值见 web/vendor/sources.json，各依赖许可证保留在同目录。
+
+## 项目统计
+
+Star History 展示本仓库的 Star 增长情况，点击曲线可打开交互图表。图表支持浅色和深色主题。
+
+<a href="https://www.star-history.com/#ZhangLinqi-07/zotero-pdf2zh-body-only&amp;Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ZhangLinqi-07/zotero-pdf2zh-body-only&amp;type=Date&amp;theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ZhangLinqi-07/zotero-pdf2zh-body-only&amp;type=Date" />
+    <img alt="Star History 星标增长曲线" src="https://api.star-history.com/svg?repos=ZhangLinqi-07/zotero-pdf2zh-body-only&amp;type=Date" width="800" />
+  </picture>
+</a>
+
+顶部 README views 徽章由 [Hits](https://github.com/silentsoft/hits) 提供，从加入徽章后开始记录图像访问请求，受缓存和重复请求影响，仅作参考。维护者可在 [Insights → Traffic](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/graphs/traffic) 查看 GitHub 统计的近期浏览、独立访客与克隆量，具体口径见 [GitHub 官方说明](https://docs.github.com/en/repositories/viewing-activity-and-data-for-your-repository/viewing-traffic-to-a-repository)。仓库列表右侧的绿色小曲线由 GitHub 自动展示近期提交活跃度。
 
 ## 上游与许可证
 
