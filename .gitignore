@@ -11,6 +11,7 @@ body-only-logs/
 .body-only-launch.json
 config.toml
 config.json
+codex.json
 section_plans/
 last_section_plan.json
 *.pdf

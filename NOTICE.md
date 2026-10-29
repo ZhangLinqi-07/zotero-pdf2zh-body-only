@@ -8,6 +8,8 @@ payload 目录包含修改后的服务文件，以及新加入的章节识别和
 
 本项目依据 GNU Affero General Public License version 3 发布，许可证文本见 LICENSE。原程序、原作者和其他依赖的权利与声明继续适用。
 
+2026 年 10 月 29 日的 Codex 模型后端与论文对话为独立实现，功能设计参考 https://github.com/ddd3651/zotero-paper-AI-assistant 的公开功能。核对的参考提交为 6c27f5984de08daa32eaf5fc680592d6913d9e9d，该仓库未提供项目级许可证，本项目未复制或分发其源码。新增模块使用本项目 AGPL-3.0-only 许可证。Codex CLI 独立安装，登录由 CLI 管理，协议依据 https://learn.chatgpt.com/docs/app-server 。
+
 v0.2.0 新增从空目录安装的引导程序。原版服务与 XPI 从 guaguastandup/zotero-pdf2zh 的 v4.1.7 发布页下载，XPI 不作修改，对应完整源代码可从 https://github.com/guaguastandup/zotero-pdf2zh/tree/v4.1.7 获取。uv 从 astral-sh/uv 的 0.13.4 发布页下载，源代码、MIT 和 Apache-2.0 许可证见 https://github.com/astral-sh/uv/tree/0.13.4 。下载内容不提交到本源码仓库。
 
 v0.3.0 加入深度阅读、共享翻译 API、公式保护、双栏整页对照和 Zotero 右键桥接。ZhangLinqi-07 于 2026 年 10 月 21 日修改服务和 bootstrap.js，并新增可读的 plugin/body_only_bridge.js。build_plugin.py 根据校验过的上游 XPI 构建增强 XPI，上游主体脚本保留，新增桥接源码直接包含在增强 XPI 内。原版 XPI 继续保留。

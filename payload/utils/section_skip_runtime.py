@@ -42,6 +42,8 @@ def install_filters(plan):
     if version('pdf2zh-next') != '2.9.0' or version('babeldoc') != '0.6.2':
         raise RuntimeError('Body-only requires pdf2zh-next 2.9.0 and BabelDOC 0.6.2; no model request has been sent.')
     install_graphics_copy_support()
+    from utils.table_text import install_table_text_support
+    install_table_text_support()
     from babeldoc.format.pdf.document_il.midend.automatic_term_extractor import AutomaticTermExtractor
     from babeldoc.format.pdf.document_il.midend.il_translator import ILTranslator
     from babeldoc.format.pdf.document_il.midend.il_translator_llm_only import ILTranslatorLLMOnly

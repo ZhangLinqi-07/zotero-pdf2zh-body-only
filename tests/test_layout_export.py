@@ -114,6 +114,21 @@ class ExportTests(unittest.TestCase):
         self.assertFalse(fits)
         self.assertEqual(engine.last_box.x2, 295)
 
+    def test_table_layout_cannot_expand_into_adjacent_cells_or_rows(self):
+        source = self.source()
+        source.unicode = 'The agent evaluates the previous choices and favors reliable routes over the entire period of time.'
+        source.layout_label = 'table_text'
+        guard = LayoutGuard({'layout': {'preserveColumns': False, 'mathMode': 'off'}})
+        guard.remember(NS(page_number=0), source)
+        Engine = self.fake_engine()
+        for box in (Box(x=270, y=100, x2=290, y2=110), Box(x=40, y=95, x2=50, y2=105)):
+            with self.subTest(box=box), patch.object(typesetting, 'Typesetting', Engine):
+                guard.install()
+                engine = Engine()
+                _, fits = engine._layout_typesetting_units([NS(box=box)], Box(x=30, y=80, x2=550, y2=130), 1, 1.5, source)
+                self.assertFalse(fits)
+                self.assertEqual(engine.last_box, source.box)
+
     def test_failed_render_queues_the_translation_instead_of_the_source(self):
         paragraph = self.source()
         page = NS(page_number=0, cropbox=None, pdf_paragraph=[paragraph], pdf_curve=[], pdf_form=[])

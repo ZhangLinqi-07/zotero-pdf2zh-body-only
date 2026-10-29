@@ -25,6 +25,7 @@ async function run(mode) {
         calls.push({ method, url, options });
         if (mode === 'rawHttpError') throw new Error('Request body contained sk-private-fixture-secret');
         if (url.endsWith('/api/capabilities')) return { response: { zoteroNotes: true, pdfReading: true, readingSearch: true, fullPageImageReading: mode !== 'oldServer' } };
+        if (url.endsWith('/api/reading/config')) return { response: { options: { backend: 'api' } } };
         if (url.endsWith('/documents')) return { response: { status: 'success', document: { id: 'b'.repeat(32) } } };
         return { status: 400, response: { status: 'error', code: 'READING_VALIDATION',
           message: 'DeepSeek 官方 API 不接收 PDF，请选择全部页面图像 sk-private-fixture-secret' } };

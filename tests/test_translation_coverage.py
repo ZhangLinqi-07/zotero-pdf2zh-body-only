@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'payload'))
-from utils.translation_coverage import substantial_prose, incomplete, verify_document, require_passed
+from utils.translation_coverage import substantial_prose, translatable_prose, incomplete, verify_document, require_passed
 
 SOURCE = 'The insurer designs the contract for the firm and evaluates the expected profit under the stated assumptions.'
 CHINESE = '保险公司为企业设计合约，并在所述假设下评估期望利润。'
@@ -21,6 +21,14 @@ except ImportError:
 
 
 class CoverageHeuristicTests(unittest.TestCase):
+    def test_short_table_phrases_are_audited_without_treating_model_names_as_prose(self):
+        self.assertFalse(incomplete('End of training', '训练末', 'zh-CN'))
+        for text in ('Start of training', 'End of training', 'Win rate of our method'):
+            self.assertTrue(translatable_prose(NS(unicode=text, layout_label='table_text')))
+            self.assertFalse(translatable_prose(NS(unicode=text, layout_label='plain text')))
+        for text in ('0.940(1)', 'MaxEnt IRL BC', 'F1-score', 'x = 2'):
+            self.assertFalse(translatable_prose(NS(unicode=text, layout_label='table_text')))
+
     def test_empty_unchanged_and_english_remaining_in_chinese_are_detected(self):
         self.assertTrue(substantial_prose(SOURCE))
         for result in ('', SOURCE, CHINESE + SOURCE):

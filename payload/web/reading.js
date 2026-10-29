@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  let currentDocument = null, currentJob = null, configured = false, searchReady = false, polling = null, busy = false;
+  let currentDocument = null, currentJob = null, configured = false, searchReady = false, polling = null, busy = false, loginPolling = null, readingProfiles = [];
   async function api(url, options) {
     const response = await fetch(url, options);
     const data = await response.json();
@@ -34,24 +34,28 @@
       $('layoutStatus').textContent = '已保存，之后发起的翻译会使用这些排版选项。含公式的正文仍需翻译，排版溢出使用完整译文续页。';
     } catch (error) { $('layoutStatus').textContent = error.message; }
   }
-  async function loadConfig() {
+  async function loadConfig(useSavedBackend = false) {
     const [data, capabilities] = await Promise.all([api('/api/reading/config'), api('/api/capabilities')]);
     searchReady = capabilities.readingSearch === true && capabilities.fullPageImageReading === true;
     const select = $('readingProvider'), previous = select.value;
     select.replaceChildren();
-    for (const profile of data.profiles) option(select, `${profile.label} · ${profile.model}`, profile.id);
-    configured = data.profiles.length > 0;
-    if (!configured) option(select, '尚未配置可用于深度阅读的 API', '');
+    readingProfiles = data.profiles;
+    for (const profile of readingProfiles) option(select, `${profile.label} · ${profile.model || '默认模型'}${profile.configured === false ? ' · 尚未登录' : ''}`, profile.id);
+    if (!readingProfiles.length) option(select, '尚未配置可用于深度阅读的模型', '');
     const requested = new URL(location.href).searchParams.get('api');
-    select.value = data.profiles.some(p => p.id === requested) ? requested : data.profiles.some(p => p.id === previous) ? previous : data.selected || '';
+    const desired = useSavedBackend ? data.selected : requested || previous || data.selected;
+    const selected = readingProfiles.find(p => p.id === desired) || readingProfiles.find(p => p.id === data.selected) || readingProfiles[0];
+    select.value = selected?.id || '';
+    configured = !!selected && selected.configured !== false;
     const search = $('readingSearchProvider');
     search.replaceChildren();
     option(search, '自动复用阅读 API', 'auto');
-    for (const profile of data.profiles) option(search, `${profile.label} · ${profile.model}`, profile.id);
+    for (const profile of data.profiles.filter(p => p.id !== 'codex')) option(search, `${profile.label} · ${profile.model}`, profile.id);
     search.value = data.options.searchProvider || 'auto';
     $('sharedApiStatus').textContent = !searchReady ? '当前后台尚未加载全部页面图像阅读，请重启到 0.3.6 或更新版本。无需重新填写 API。' : configured
-      ? '正在复用翻译 API，深度阅读无需再次填写密钥。'
-      : '免费翻译仍可使用。深度阅读需要你配置自己的 API。';
+      ? '深度阅读可使用已有翻译 API 或已登录的 Codex，按所选模型后端运行。'
+      : '深度阅读需要配置自己的 API 或登录 Codex。';
+    $('readingBackend').value = data.options.backend || 'api';
     for (const name of ['pdfProtocol', 'documentMode', 'requestTimeout', 'inputPrice', 'outputPrice', 'unitCny']) {
       $(name).value = data.options[name] ?? '';
     }
@@ -59,6 +63,57 @@
     if (compatible) { $('sharedEndpoint').value = compatible.endpoint; $('sharedModel').value = compatible.model; }
     $('apiConfiguration').open = !configured;
     startState(); describeDocument();
+  }
+  async function loadCodex() {
+    const [data, backend, reading] = await Promise.all([api('/api/paper-chat/config'), api('/api/model-backend'), api('/api/reading/config')]);
+    const account = data.codex || {};
+    $('codexAccountStatus').textContent = account.message || '尚未登录 Codex';
+    $('loginCodex').disabled = account.authenticated === true;
+    $('translationBackend').value = backend.settings.translationBackend;
+    $('readingBackend').value = reading.options.backend || 'api';
+    const select = $('codexModel');
+    select.replaceChildren(); option(select, '使用 Codex 默认模型', '');
+    if (account.available && account.authenticated) {
+      const result = await api('/api/paper-chat/models?mode=codex');
+      for (const model of result.models || []) option(select, model.displayName || model.model || model.id, model.model || model.id);
+    }
+    const saved = reading.options.codexModel || backend.settings.model || '';
+    if (saved && ![...select.options].some(item => item.value === saved)) option(select, saved, saved);
+    select.value = saved;
+  }
+  async function loginCodex() {
+    try {
+      const result = await api('/api/paper-chat/login', post({}));
+      const login = result.login || result;
+      const info = $('codexLoginInfo'); info.replaceChildren(); info.hidden = false;
+      info.append(document.createTextNode(login.message || '请完成 Codex 登录'));
+      const address = login.verificationUri || login.verificationUrl;
+      if (address) {
+        const url = new URL(address);
+        if (url.protocol === 'https:' && ['auth.openai.com', 'auth0.openai.com'].includes(url.hostname)) {
+          const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = ' 打开官方登录页面'; info.append(link);
+        }
+      }
+      if (login.userCode) info.append(document.createTextNode(' 登录代码 ' + login.userCode));
+      clearTimeout(loginPolling);
+      const check = async () => {
+        try {
+          const response = await api('/api/paper-chat/login'), state = response.login || response;
+          if (state.authenticated) { info.textContent = 'Codex 登录完成'; await Promise.all([loadCodex(), loadConfig()]); }
+          else if (state.completed) { info.textContent = state.message || '登录未完成，请重试'; }
+          else loginPolling = setTimeout(check, 3000);
+        } catch (error) { info.textContent = error.message; }
+      };
+      if (!login.authenticated) loginPolling = setTimeout(check, 3000); else await loadCodex();
+    } catch (error) { status(error.message, 'error'); }
+  }
+  async function saveModelBackend() {
+    try {
+      const model = $('codexModel').value;
+      await api('/api/model-backend', post({ translationBackend: $('translationBackend').value, model }));
+      await api('/api/reading/config', post({ backend: $('readingBackend').value, codexModel: model }));
+      await loadConfig(true); status('模型后端已保存，对之后发起的翻译和深度阅读生效。', 'success');
+    } catch (error) { status(error.message, 'error'); }
   }
   async function saveConfig() {
     const data = { pdfProtocol: $('pdfProtocol').value, documentMode: $('documentMode').value, requestTimeout: Number($('requestTimeout').value), searchProvider: $('readingSearchProvider').value };
@@ -74,6 +129,10 @@
   function describeDocument() {
     if (!currentDocument) { $('readingDocumentInfo').textContent = '选择 PDF 后，原始文件将完整提交给支持 PDF 的 API。'; return; }
     const mode = $('documentMode').value;
+    if ($('readingProvider').value === 'codex') {
+      $('readingDocumentInfo').textContent = `${currentDocument.filename}，共 ${currentDocument.pages} 页。全部页面渲染为 144 dpi 图像，与完整提示词交给 Codex，保留联网核验和自动子笔记。`;
+      return;
+    }
     const input = mode === 'images' ? '全部页面转为整页图像后与完整提示词一次提交。' : mode === 'pdf' ? '完整 PDF 与阅读提示词一起提交。' : '自动模式下 DeepSeek Flash 使用全部页面图像，其余 API 使用完整 PDF。';
     $('readingDocumentInfo').textContent = `${currentDocument.filename}，共 ${currentDocument.pages} 页。${input}不选页或分段摘要。输出长度与思考强度采用接口默认设置，达到输出上限后自动续写。`;
   }
@@ -172,13 +231,17 @@
   window.addEventListener('load', async () => {
     $('preserveColumns').addEventListener('change', saveLayout); $('mathMode').addEventListener('change', saveLayout);
     $('documentMode').addEventListener('change', describeDocument);
+    $('readingProvider').addEventListener('change', () => { configured = readingProfiles.some(profile => profile.id === $('readingProvider').value && profile.configured !== false); startState(); describeDocument(); });
+    $('loginCodex').addEventListener('click', loginCodex);
+    $('refreshCodex').addEventListener('click', () => Promise.all([loadCodex(), loadConfig()]).catch(error => status(error.message, 'error')));
+    $('saveModelBackend').addEventListener('click', saveModelBackend);
     $('saveSharedApi').addEventListener('click', saveConfig); $('refreshSharedApi').addEventListener('click', () => loadConfig().catch(error => status(error.message, 'error')));
     $('readingFile').addEventListener('change', event => upload(event.target.files[0]));
     $('readingExisting').addEventListener('change', event => readExisting(event.target.value));
     $('readingHistory').addEventListener('change', event => { if (event.target.value) { clearTimeout(polling); pollJob(event.target.value); } });
     $('startReading').addEventListener('click', startReading); $('cancelReading').addEventListener('click', cancelReading);
     $('exportReadingHtml').addEventListener('click', exportHtml);
-    await Promise.allSettled([loadLayout(), loadConfig(), loadExisting(), loadHistory()]);
+    await Promise.allSettled([loadLayout(), loadConfig(), loadCodex(), loadExisting(), loadHistory()]);
     const documentId = new URL(location.href).searchParams.get('reading');
     const jobId = new URL(location.href).searchParams.get('readingJob');
     if (documentId || location.hash === '#reading') {

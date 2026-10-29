@@ -17,7 +17,7 @@ import toml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'payload'))
-from utils import shared_api, web_research
+from utils import shared_api, web_research, codex_reading
 from utils.deep_reading import register_reading, ReadingManager, merge_continuation
 
 
@@ -26,6 +26,11 @@ class StructuredReadingTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='structured-reading-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        codex_state = patch.object(codex_reading, 'public_profile', return_value={
+            'id': 'codex', 'label': 'Codex', 'model': '默认模型', 'configured': False,
+            'available': False, 'authenticated': False})
+        codex_state.start()
+        self.addCleanup(codex_state.stop)
         (self.root / 'config').mkdir()
         (self.root / 'prompts').mkdir()
         shutil.copy2(ROOT / 'payload/prompts/deep_reading_zh.txt', self.root / 'prompts/deep_reading_zh.txt')

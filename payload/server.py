@@ -41,6 +41,8 @@ from utils.execute import execute_with_progress
 from utils.section_skip import read_settings as read_section_settings, save_settings as save_section_settings, prepare_translation_command
 from utils.layout_preservation import read_layout_settings, save_layout_settings, prepare_layout_command
 from utils.deep_reading import register_reading
+from utils.paper_chat import register_paper_chat
+from utils.codex_provider import register_codex_provider
 from utils.shared_api import _WRITE_LOCK as shared_api_lock
 
 _VALUE_ERROR_RE = re.compile(r'(?m)^ValueError:\s*(?P<msg>.+)$')
@@ -143,9 +145,11 @@ class PDFTranslator:
         self.app.add_url_rule('/api/config', 'config', self.get_config)
         self.app.add_url_rule('/api/section-settings', 'section_settings', self.section_settings, methods=['GET', 'POST'])
         self.app.add_url_rule('/api/layout-settings', 'layout_settings', self.layout_settings, methods=['GET', 'POST'])
-        self.app.add_url_rule('/api/capabilities', 'capabilities', lambda: jsonify(status='success', version='0.3.7', deepReading=True, sharedAPI=True, fullPageCompare=True, zoteroNotes=True, directReading=True, pdfReading=True, autoContinueReading=True, readingSearch=True, fullPageImageReading=True, translationCoverage=True))
+        self.app.add_url_rule('/api/capabilities', 'capabilities', lambda: jsonify(status='success', version='0.4.0pre1', deepReading=True, sharedAPI=True, fullPageCompare=True, zoteroNotes=True, directReading=True, pdfReading=True, autoContinueReading=True, readingSearch=True, fullPageImageReading=True, translationCoverage=True, paperChat=True, codexBackend=True, codexTranslation=True))
         self.app.add_url_rule('/body-only-assets/<path:filename>', 'body_only_assets', lambda filename: send_from_directory(os.path.join(root_path, 'web'), filename))
         self.reading = register_reading(self.app, root_path)
+        self.paper_chat = register_paper_chat(self.app, root_path)
+        self.codex_provider = register_codex_provider(self.app, root_path)
         # 新增：favicon 路由
         self.app.add_url_rule('/favicon.svg', 'favicon', self.favicon)
         # 新增：提示音音频路由
@@ -299,7 +303,12 @@ class PDFTranslator:
         data = request.get_json(silent=True)
         if not isinstance(data, dict):
             raise ValueError("Invalid JSON request")
+        needs_model = request.path != '/crop' and self.get_filetype(data.get('fileName', '')) == 'origin'
+        codex_translation = False
+        if needs_model:
+            data, codex_translation = self.codex_provider.translation_request(data, f'http://127.0.0.1:{args.port}')
         config = Config(data)
+        config._kinbo_codex = codex_translation
         layout = read_layout_settings(config_folder)
         config._body_layout_settings = layout
         if layout['preserveColumns']:
@@ -1126,8 +1135,10 @@ class PDFTranslator:
     def translate_pdf_next(self, input_path, config, task_id=None):
         if config.service in pdf2zh_next_service_aliases:
             config.service = pdf2zh_next_service_aliases[config.service]
+        translation_config_path = (self.codex_provider.translation_config(config.llm_api) if getattr(config, '_kinbo_codex', False)
+                                   else config_path[pdf2zh_next])
         with shared_api_lock:
-            config.update_config_file(config_path[pdf2zh_next])
+            config.update_config_file(translation_config_path)
 
         cmd = [
             pdf2zh_next,
@@ -1137,7 +1148,7 @@ class PDFTranslator:
             '--output', str(output_folder),
             '--lang-in', str(config.sourceLang),
             '--lang-out', str(config.targetLang),
-            '--config-file', str(config_path[pdf2zh_next]), # 使用默认的config path路径
+            '--config-file', str(translation_config_path),
         ]
         # TODO: 增加术语表的地址
         if config.no_watermark:

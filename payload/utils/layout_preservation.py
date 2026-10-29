@@ -162,6 +162,7 @@ class LayoutGuard:
         self.translations = {}
         self.continuations = []
         self.queued = set()
+        self.table_tops = {}
 
     def continue_paragraph(self, paragraph, translated, page, reason):
         from utils.layout_overflow import paragraph_runs
@@ -190,6 +191,14 @@ class LayoutGuard:
         if key not in self.originals:
             self.originals[key] = deepcopy(paragraph)
             self.pages[key] = page.page_number
+            if getattr(paragraph, 'layout_label', '') == 'table_text' and paragraph.box:
+                size = getattr(paragraph.pdf_style, 'font_size', None) or 6
+                rules = [curve.box.y for curve in getattr(page, 'pdf_curve', [])
+                         if curve.box is not None and abs(curve.box.y2 - curve.box.y) < .5
+                         and curve.box.x2 - curve.box.x >= (paragraph.box.x2 - paragraph.box.x) * .5
+                         and abs(curve.box.y - paragraph.box.y2) <= size * .5]
+                if rules:
+                    self.table_tops[key] = min(rules) - size * .3
             if protect_formula(paragraph, self.settings["mathMode"]):
                 self.protected.add(key)
         return key in self.protected
@@ -279,6 +288,15 @@ class LayoutGuard:
         def layout(self, units, box, scale, line_skip, paragraph, *args, **kwargs):
             middle = guard.columns.get(guard.pages.get(id(paragraph)))
             source = guard.originals.get(id(paragraph))
+            table_cell = source is not None and source.layout_label == 'table_text' and source.box is not None
+            if table_cell:
+                box = deepcopy(box)
+                box.x = max(box.x, source.box.x)
+                box.x2 = min(box.x2, source.box.x2)
+                from utils.translation_coverage import substantial_prose
+                if substantial_prose(source.unicode):
+                    box.y = max(box.y, source.box.y)
+                    box.y2 = min(box.y2, source.box.y2, guard.table_tops.get(id(paragraph), source.box.y2))
             constrained = middle is not None and source is not None and source.box and source.box.x2 <= middle
             if constrained:
                 box = deepcopy(box)
@@ -300,6 +318,12 @@ class LayoutGuard:
             # Account for hanging punctuation and original glyph offsets while
             # the engine can still retry a smaller scale, before source fallback.
             if constrained and any(unit.box and unit.box.x2 > middle + 1 for unit in rendered):
+                fits = False
+            if table_cell and any(unit.box and (unit.box.x < source.box.x - 1
+                                                or unit.box.x2 > source.box.x2 + 1
+                                                or (substantial_prose(source.unicode)
+                                                    and (unit.box.y < source.box.y - 1
+                                                         or unit.box.y2 > source.box.y2 + 1))) for unit in rendered):
                 fits = False
             return rendered, fits
 

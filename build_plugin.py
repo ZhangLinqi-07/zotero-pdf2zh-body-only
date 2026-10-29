@@ -10,11 +10,12 @@ import urllib.parse
 
 ROOT = Path(__file__).resolve().parent
 PLUGIN_VERSION = '4.1.7.10'
+DEVELOPMENT_VERSION = '4.1.7.11pre1'
 UPDATE_URL = 'https://raw.githubusercontent.com/ZhangLinqi-07/zotero-pdf2zh-body-only/main/updates.json'
 MAX_ZOTERO_VERSION = '10.0.*'
 
 
-def build(source, destination, server_url=None):
+def build(source, destination, server_url=None, development=False):
     source, destination = Path(source), Path(destination)
     if source.resolve() == destination.resolve():
         raise ValueError('Choose a different output path for the enhanced XPI')
@@ -24,7 +25,7 @@ def build(source, destination, server_url=None):
     with zipfile.ZipFile(source) as archive:
         files = {name: archive.read(name) for name in archive.namelist() if not name.endswith('/')}
     metadata = json.loads(files['manifest.json'])
-    metadata.update(name='Zotero PDF2zh Body Only', version=PLUGIN_VERSION,
+    metadata.update(name='Zotero PDF2zh Body Only', version=DEVELOPMENT_VERSION if development else PLUGIN_VERSION,
                     description='PDF translation, shared-API structured reading, formula protection and full-page bilingual layout.',
                     homepage_url='https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only')
     metadata['applications']['zotero'].update(update_url=UPDATE_URL, strict_max_version=MAX_ZOTERO_VERSION)
@@ -57,6 +58,7 @@ def build(source, destination, server_url=None):
     files['prefs.js'] = files['prefs.js'].replace(b'http://localhost:8890', b'http://127.0.0.1:8891')
     files['content/scripts/body-only.js'] = (ROOT / 'plugin/body_only_bridge.js').read_bytes()
     files['content/scripts/body-only-note.js'] = (ROOT / 'plugin/reading_note.js').read_bytes()
+    files['content/scripts/kinbo-paper-chat.js'] = (ROOT / 'plugin/paper_chat.js').read_bytes()
     for source, target in [('marked.js', 'body-only-marked.js'), ('purify.js', 'body-only-purify.js')]:
         files['content/scripts/' + target] = (ROOT / 'payload/web/vendor' / source).read_bytes()
     for license in (ROOT / 'payload/web/vendor').glob('*LICENSE*'):
@@ -77,5 +79,6 @@ if __name__ == '__main__':
     parser.add_argument('--upstream-xpi', required=True)
     parser.add_argument('--output', required=True)
     parser.add_argument('--server-url', help='Optional, once-only server preference migration for a local installation')
+    parser.add_argument('--development', action='store_true', help='Build the unreleased integration version without changing the published update channel')
     options = parser.parse_args()
-    print(json.dumps(build(options.upstream_xpi, options.output, options.server_url)))
+    print(json.dumps(build(options.upstream_xpi, options.output, options.server_url, options.development)))

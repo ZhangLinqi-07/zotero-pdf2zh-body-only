@@ -3,7 +3,7 @@
 var BodyOnlyBridge = (() => {
   const entries = new Map();
   const prefix = 'extensions.zotero.pdf2zh.';
-  let active = false, timer = null, syncing = false, noteTools = null;
+  let active = false, timer = null, syncing = false, noteTools = null, paperChat = null;
   const readingWindows = new Map(), preparing = new Set();
   class SafeReadingError extends Error {}
   function progressWindow(text) {
@@ -88,7 +88,8 @@ var BodyOnlyBridge = (() => {
       preparing.add(preparingKey);
       acquired = true;
       view = progressWindow('正在准备论文并读取已有翻译 API');
-      const provider = await syncAPI(base);
+      const settings = await Zotero.HTTP.request('GET', base + '/api/reading/config', { responseType: 'json', timeout: 10000 });
+      const provider = settings.response?.options?.backend === 'codex' ? 'codex' : await syncAPI(base);
       const io = typeof IOUtils !== 'undefined' ? IOUtils : win.IOUtils;
       let binary;
       if (io?.read) {
@@ -212,6 +213,10 @@ var BodyOnlyBridge = (() => {
       const stop = win.document.createXULElement('menuitem'); stop.id = 'pdf2zh-body-only-stop-reading';
       stop.setAttribute('label', '停止本篇后续续写'); stop.addEventListener('command', () => stopReading(win));
       popup.appendChild(stop); nodes.push(stop);
+      const model = win.document.createXULElement('menuitem'); model.id = 'pdf2zh-body-only-model';
+      model.setAttribute('label', '模型后端与 Codex 登录');
+      model.addEventListener('command', () => Zotero.launchURL(baseURL() + '/#reading'));
+      popup.appendChild(model); nodes.push(model);
       entries.set(win, { nodes, labels });
     }
   }
@@ -228,8 +233,16 @@ var BodyOnlyBridge = (() => {
         Zotero.Prefs.set(prefix + 'bodyOnlyServerMigrated_0_3_0', true, true);
       }
       for (const win of Zotero.getMainWindows()) addWindow(win);
+      if (!paperChat && typeof BodyOnlyRootURI === 'string') {
+        try {
+          const scope = { Zotero, Services };
+          Services.scriptloader.loadSubScript(BodyOnlyRootURI + 'content/scripts/kinbo-paper-chat.js', scope);
+          paperChat = scope.KinboPaperChat;
+          paperChat.start({ baseURL, syncAPI, rootURI: BodyOnlyRootURI });
+        } catch (_) { Zotero.logError(new Error('Kinbo paper chat initialization failed')); }
+      }
       if (!active) { active = true; pollNotes(); }
     },
-    stop() { active = false; if (timer) Zotero.getMainWindow()?.clearTimeout(timer); timer = null; noteTools = null; for (const view of readingWindows.values()) view.popup.close(); readingWindows.clear(); for (const win of [...entries.keys()]) removeWindow(win); },
+    stop() { active = false; paperChat?.stop(); paperChat = null; if (timer) Zotero.getMainWindow()?.clearTimeout(timer); timer = null; noteTools = null; for (const view of readingWindows.values()) view.popup.close(); readingWindows.clear(); for (const win of [...entries.keys()]) removeWindow(win); },
   };
 })();

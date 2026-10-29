@@ -60,12 +60,20 @@ class ReadingManager:
         path = self.root / 'config/reading.json'
         stored = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
         # Old local token budgets and chunk sizes are deliberately ignored.
-        defaults = {'pdfProtocol': 'auto', 'documentMode': 'auto', 'requestTimeout': 0, 'searchProvider': 'auto',
+        defaults = {'backend': 'api', 'codexModel': '',
+                    'pdfProtocol': 'auto', 'documentMode': 'auto', 'requestTimeout': 0, 'searchProvider': 'auto',
                     'inputPrice': None, 'outputPrice': None, 'unitCny': None}
         return {name: stored.get(name, default) for name, default in defaults.items()}
 
     def configure(self, data):
         options = self.options()
+        backend = data.get('backend', options['backend'])
+        if not isinstance(backend, str) or backend not in {'api', 'codex'}:
+            raise ValueError('请选择共享 API 或 Codex 登录作为阅读后端')
+        model = data.get('codexModel', options['codexModel'])
+        if not isinstance(model, str) or len(model) > 200 or any(c in model for c in '\r\n'):
+            raise ValueError('请输入有效的 Codex 模型名称')
+        options.update(backend=backend, codexModel=model.strip())
         protocol = data.get('pdfProtocol', options['pdfProtocol'])
         if protocol not in shared_api.PDF_PROTOCOLS:
             raise ValueError('无效的 PDF 接口格式')
@@ -179,10 +187,13 @@ class ReadingManager:
             raise ValueError('无效的笔记保存状态')
         return self.snapshot(job_id)
 
-    def start(self, document_id, provider):
+    def start(self, document_id, provider=None):
+        options = self.options()
+        if provider == 'codex' or (provider is None and options['backend'] == 'codex'):
+            from utils import codex_reading
+            return codex_reading.start(self, document_id, options)
         profile = shared_api.resolve(self.root / 'config', provider)
         document = self.document(document_id)
-        options = self.options()
         protocol = shared_api.pdf_protocol(profile, options['pdfProtocol'])
         mode = page_images.select_mode(profile, options['documentMode'])
         if page_images.official_deepseek(profile) and protocol == 'gemini':
@@ -399,8 +410,12 @@ def register_reading(app, server_root):
                 shared_api.save_compatible(manager.root / "config", data["endpoint"], data.get("model"), data.get("apiKey"))
             manager.configure(data)
         found, active = shared_api.profiles(manager.root / "config")
-        return jsonify(status="success", profiles=[profile.public() for profile in found], selected=active,
-                       options=manager.options(), inputMode='configurable', documentModes=sorted(page_images.MODES), outputLimit='provider', searchRequired=True)
+        from utils import codex_reading
+        options = manager.options()
+        profiles = [profile.public() for profile in found]
+        profiles.append(codex_reading.public_profile(manager.root, options['codexModel']))
+        return jsonify(status="success", profiles=profiles, selected='codex' if options['backend'] == 'codex' else active,
+                       options=options, inputMode='configurable', documentModes=sorted(page_images.MODES), outputLimit='provider', searchRequired=True)
 
     @routes.route("/api/reading/documents", methods=["POST"])
     def upload():

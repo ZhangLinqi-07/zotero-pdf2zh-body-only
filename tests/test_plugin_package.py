@@ -28,7 +28,7 @@ class PluginPackageTests(unittest.TestCase):
             archive.writestr('bootstrap.js', 'var chromeHandle;\nasync function startup() {\n    Zotero.pdf2zh.hooks.onStartup();\n}\n')
             archive.writestr('prefs.js', 'pref("server", "http://localhost:8890");')
         (self.root / 'downloads.json').write_text(json.dumps({'plugin': {'sha256': hashlib.sha256(self.upstream.read_bytes()).hexdigest()}}))
-        for name in ('plugin/body_only_bridge.js', 'plugin/reading_note.js',
+        for name in ('plugin/body_only_bridge.js', 'plugin/reading_note.js', 'plugin/paper_chat.js',
                      'payload/web/vendor/marked.js', 'payload/web/vendor/purify.js', 'LICENSE', 'NOTICE.md'):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -61,6 +61,15 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(update['update_hash'], 'sha256:' + hashlib.sha256(self.public.read_bytes()).hexdigest())
         self.assertEqual(update['update_link'], 'https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.3.5/zotero-pdf2zh-body-only-v0.3.5.xpi')
         self.assertEqual(update['applications']['zotero']['strict_max_version'], '10.0.*')
+
+    def test_development_package_preserves_published_update_channel(self):
+        with patch.object(build_plugin, 'ROOT', self.root):
+            build_plugin.build(self.upstream, self.public, development=True)
+        with zipfile.ZipFile(self.public) as archive:
+            metadata = json.loads(archive.read('manifest.json'))
+            self.assertIn('content/scripts/kinbo-paper-chat.js', archive.namelist())
+        self.assertEqual(metadata['version'], build_plugin.DEVELOPMENT_VERSION)
+        self.assertEqual(metadata['applications']['zotero']['update_url'], build_plugin.UPDATE_URL)
 
     def test_local_build_cannot_accidentally_be_published_as_an_update(self):
         # Supply the normal bridge hook so the build's once-only local override

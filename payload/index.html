@@ -376,7 +376,19 @@
         <div class="reading-grid">
           <section class="enhancement-card">
             <h2>复用翻译 API</h2>
-            <p id="sharedApiStatus">正在读取翻译 API 配置</p>
+            <p id="sharedApiStatus">正在读取模型配置</p>
+            <details id="codexConfiguration" open>
+              <summary>Codex 登录与模型后端</summary>
+              <p id="codexAccountStatus" role="status">正在检查本机 Codex 登录</p>
+              <button class="reading-button secondary" id="loginCodex">登录 Codex</button>
+              <button class="reading-button secondary" id="refreshCodex">刷新登录与模型</button>
+              <p id="codexLoginInfo" hidden></p>
+              <label class="reading-field">默认深度阅读后端<select id="readingBackend"><option value="api">现有翻译 API</option><option value="codex">Codex 登录</option></select></label>
+              <label class="reading-field">PDF 翻译后端<select id="translationBackend"><option value="api">现有翻译 API</option><option value="codex">Codex 登录</option></select></label>
+              <label class="reading-field">Codex 模型<select id="codexModel"><option value="">使用 Codex 默认模型</option></select></label>
+              <p>Codex 登录由本机 CLI 管理。深度阅读提交全部页面图像并执行联网核验，结果仍保存为论文子笔记。PDF 翻译沿用现有引擎，按段落请求 Codex 并保留版式。点击发送、翻译或开始阅读后才使用模型额度。</p>
+              <button class="reading-button secondary" id="saveModelBackend">保存模型后端</button>
+            </details>
             <label class="reading-field">本次阅读使用的 API<select id="readingProvider"></select></label>
             <label class="reading-field">联网核验使用的 API<select id="readingSearchProvider"><option value="auto">自动复用阅读 API</option></select></label>
             <p>每次深度阅读都会先联网检索，核验发表状态与外部资料，并把网页来源保存到笔记。搜索失败时会明确提示。也可选择另一个已经配置的 API 负责检索。</p>

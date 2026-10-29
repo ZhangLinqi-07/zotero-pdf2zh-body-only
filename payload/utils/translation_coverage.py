@@ -17,6 +17,17 @@ def substantial_prose(text):
     return len(words) >= 12 and sum(word.lower() in FUNCTION_WORDS for word in words) >= 3
 
 
+def translatable_prose(paragraph):
+    text = paragraph.unicode or ''
+    if substantial_prose(text):
+        return True
+    # Text cells also contain short, meaningful phrases such as "End of training".
+    # Do not classify numeric cells, model names, or isolated symbols as prose.
+    words = WORDS.findall(text)
+    return (getattr(paragraph, 'layout_label', '') == 'table_text' and len(words) >= 3
+            and any(word.lower() in FUNCTION_WORDS for word in words))
+
+
 def incomplete(source, result, target):
     if not isinstance(result, str) or not result.strip():
         return True
@@ -24,7 +35,7 @@ def incomplete(source, result, target):
     if normalized(source) == normalized(result):
         return True
     if str(target).lower().startswith(('zh', 'chinese')):
-        if len(CJK.findall(result)) < 4:
+        if len(CJK.findall(result)) < (4 if substantial_prose(source) else 2):
             return True
         # A long English sentence left amid Chinese is still an incomplete translation.
         for span in re.split(r'[\u3400-\u9fff。！？\n]', result):
@@ -49,7 +60,7 @@ def verify_document(translator, document, report_path):
     source_language = str(getattr(translator.translation_config, 'lang_in', ''))
     enabled = source_language.casefold() != target.casefold()
     originals = [(page, paragraph, deepcopy(paragraph)) for page in document.page for paragraph in page.pdf_paragraph
-                 if enabled and not paragraph.vertical and substantial_prose(paragraph.unicode)]
+                 if enabled and not paragraph.vertical and translatable_prose(paragraph)]
 
     def finish():
         from babeldoc.format.pdf.document_il.midend.il_translator import ParagraphTranslateTracker
