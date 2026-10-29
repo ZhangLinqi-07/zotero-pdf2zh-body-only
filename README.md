@@ -7,13 +7,13 @@
 
 ## 开发预览版的 Codex 模型后端
 
-当前源码已接入 Codex 登录，可为 PDF 正文翻译、完整论文深度阅读和阅读器侧栏对话提供模型。后台预览版本为 0.4.0pre1，使用 `python build_plugin.py --upstream-xpi .downloads/zotero-pdf-2-zh-v4.1.7.xpi --output dist/kinbo-codex-preview.xpi --development` 构建 4.1.7.11pre1 插件。此预览版本尚未发布，公开 updates.json 继续指向已经发布的稳定包。升级需要同时更新后台和 XPI。
+当前源码已接入 Codex 登录，可为 PDF 正文翻译、完整论文深度阅读和阅读器侧栏对话提供模型。后台预览版本为 0.4.0pre1，使用 `python build_plugin.py --upstream-xpi .downloads/zotero-pdf-2-zh-v4.1.7.xpi --output dist/kinbo-codex-preview.xpi --development` 构建 4.1.7.11pre2 插件。此预览版本尚未发布，公开 updates.json 继续指向已经发布的稳定包。升级需要同时更新后台和 XPI。
 
 在 Kinbo 右键子菜单中打开模型后端与 Codex 登录，或访问本地控制页的深度阅读页签。安装本机 Codex CLI 后，可使用已有的 ChatGPT 登录，或点击登录 Codex 前往官方页面登录。在页面中选择深度阅读和 PDF 翻译各自使用的模型后端，并保存设置。模型列表由本机 Codex 动态返回，实际可用模型与额度由账号决定。Kinbo 不读取或另存 Codex 登录令牌，也不修改用户 Codex 工程配置。
 
 Codex 深度阅读将原 PDF 的全部页面按顺序渲染为 144 dpi PNG，与完整阅读模板提交。联网核验必须取得实际搜索工具事件和有效来源，未取得时明确停止。阅读会保留完整输入、续写上下文和中间稿，完成后沿用自动子笔记流程。Codex 翻译沿用 pdf2zh_next 的段落、术语、公式与版式处理，通过本机受保护的生成接口逐段调用 Codex，串行处理请求，译文仍经过漏译检测。切换后端对之后的新任务生效，原有翻译 API 配置保留。
 
-打开 PDF 后点击工具栏的 Kinbo 对话可在左侧或右侧提问，选中文字后也可点击向 Kinbo 提问。对话使用完整文字层并保留本地历史，回答中的物理页码引用可跳转，准确原句在指定页唯一匹配时显示临时高亮。扫描页与图像内部内容需要 OCR，完整图像阅读继续使用深度阅读入口。打开侧栏、选择原文、检查登录和模型列表不发起模型生成，发送问题、翻译和深度阅读会使用所选账号的额度。
+打开 PDF 后点击工具栏的 Kinbo 对话可在左侧或右侧提问，也可从 Zotero 工具菜单选择 Kinbo 论文对话边栏，或右键论文进入 Kinbo 的打开论文对话边栏。已打开的 PDF 会补挂按钮，选中文字后也可点击向 Kinbo 提问。对话使用完整文字层并保留本地历史，回答中的物理页码引用可跳转，准确原句在指定页唯一匹配时显示临时高亮。扫描页与图像内部内容需要 OCR，完整图像阅读继续使用深度阅读入口。打开侧栏、选择原文、检查登录和模型列表不发起模型生成，发送问题、翻译和深度阅读会使用所选账号的额度。
 
 功能设计参考 [Zotero Paper AI Assistant](https://github.com/ddd3651/zotero-paper-AI-assistant)，Kinbo 的实现独立编写。模型连接使用 [Codex app-server 官方协议](https://learn.chatgpt.com/docs/app-server)，只读检查、模拟测试与真实生成的验证范围应分别说明。
 

@@ -10,7 +10,7 @@ import urllib.parse
 
 ROOT = Path(__file__).resolve().parent
 PLUGIN_VERSION = '4.1.7.10'
-DEVELOPMENT_VERSION = '4.1.7.11pre1'
+DEVELOPMENT_VERSION = '4.1.7.11pre2'
 UPDATE_URL = 'https://raw.githubusercontent.com/ZhangLinqi-07/zotero-pdf2zh-body-only/main/updates.json'
 MAX_ZOTERO_VERSION = '10.0.*'
 

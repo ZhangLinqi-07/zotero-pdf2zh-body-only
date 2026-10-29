@@ -131,6 +131,15 @@ var BodyOnlyBridge = (() => {
       }
     } catch (_) { win.alert('未能停止续写，请确认增强服务仍在运行，并选中正在阅读的论文。'); }
   }
+  async function openChat(win) {
+    try {
+      if (!paperChat) throw new SafeReadingError('论文对话尚未加载，请重新启用 Kinbo 插件');
+      await paperChat.openFromWindow(win);
+    } catch (error) {
+      const message = error instanceof SafeReadingError || error?.kinboSafe ? String(error.message).replace(/sk-[\w-]+/g, '***').slice(0, 600) : '无法打开论文对话，请确认 PDF 已加载并且 Kinbo 后台可连接';
+      win.alert(message);
+    }
+  }
   function tools() {
     if (!noteTools) {
       const context = { window: Zotero.getMainWindow() };
@@ -213,6 +222,15 @@ var BodyOnlyBridge = (() => {
       const stop = win.document.createXULElement('menuitem'); stop.id = 'pdf2zh-body-only-stop-reading';
       stop.setAttribute('label', '停止本篇后续续写'); stop.addEventListener('command', () => stopReading(win));
       popup.appendChild(stop); nodes.push(stop);
+      const chat = win.document.createXULElement('menuitem'); chat.id = 'pdf2zh-body-only-chat';
+      chat.setAttribute('label', '打开论文对话边栏');
+      chat.addEventListener('command', () => openChat(win)); popup.appendChild(chat); nodes.push(chat);
+      const toolsPopup = win.document.getElementById('menu_ToolsPopup');
+      if (toolsPopup) {
+        const toolsChat = win.document.createXULElement('menuitem'); toolsChat.id = 'kinbo-paper-chat-tools';
+        toolsChat.setAttribute('label', 'Kinbo 论文对话边栏');
+        toolsChat.addEventListener('command', () => openChat(win)); toolsPopup.appendChild(toolsChat); nodes.push(toolsChat);
+      }
       const model = win.document.createXULElement('menuitem'); model.id = 'pdf2zh-body-only-model';
       model.setAttribute('label', '模型后端与 Codex 登录');
       model.addEventListener('command', () => Zotero.launchURL(baseURL() + '/#reading'));

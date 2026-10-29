@@ -96,6 +96,11 @@ function startup() {
       report.accurateQuoteMatch = true; report.matchedCharacterRects = rects.length;
       at('open-native-sidebar');
       chat.start({ baseURL: () => 'http://127.0.0.1:19731', syncAPI: async () => null });
+      await waitFor(() => reader._iframeWindow.document.querySelector('[data-kinbo-chat-toggle]'), 'Existing native reader has no Kinbo toolbar entry');
+      report.nativeToolbarEntry = true;
+      check(Zotero.getMainWindow().document.getElementById('kinbo-paper-chat-tools'), 'The persistent Tools menu entry is missing');
+      check(Zotero.getMainWindow().document.getElementById('pdf2zh-body-only-chat'), 'The library context menu entry is missing');
+      report.nativeMenuEntries = true;
       const host = reader._iframe.parentElement, hostStyle = host.style.cssText, frameStyle = reader._iframe.style.cssText;
       const panel = await chat.open(reader, { text: quote, page: 2 });
       check(panel && !panel.closed && host.contains(panel.aside), 'Native reader sidebar was not attached');

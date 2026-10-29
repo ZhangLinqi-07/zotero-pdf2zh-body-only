@@ -5,7 +5,8 @@ var KinboPaperChat = (() => {
   const prefRoot = 'extensions.zotero.pdf2zh.paperChat.';
   const htmlNS = 'http://www.w3.org/1999/xhtml';
   const panels = new Map(), toolbarButtons = new Set();
-  let options = null, started = false;
+  let options = null, started = false, observerID = null;
+  const toolbarRetries = new Map();
 
   function element(doc, tag, text, className) {
     const node = doc.createElementNS(htmlNS, tag);
@@ -414,13 +415,63 @@ var KinboPaperChat = (() => {
     } catch (error) { panel.status.textContent = safeError(error); panel.messages.textContent = '论文对话尚未就绪，关闭面板后可重新打开。'; }
     return panel;
   }
+  function toolbarButton(doc, reader) {
+    const button = element(doc, 'button', 'Kinbo 对话');
+    button.setAttribute('data-kinbo-chat-toggle', 'true');
+    button.setAttribute('title', '打开 Kinbo 论文对话边栏');
+    button.setAttribute('aria-label', '打开 Kinbo 论文对话边栏');
+    button.style.cssText = 'white-space:nowrap;flex:none;min-width:78px;width:auto;height:26px;padding:2px 8px;margin:0 4px;font-size:12px;color:inherit;background:transparent;border:1px solid currentColor;border-radius:4px;-moz-window-dragging:no-drag;';
+    button.addEventListener('click', () => { const panel = panels.get(reader); if (panel) close(panel); else return open(reader); });
+    for (const prior of toolbarButtons) if (prior.isConnected === false) toolbarButtons.delete(prior);
+    toolbarButtons.add(button);
+    return button;
+  }
+  function attachToolbar(reader) {
+    if (!started || !reader || (reader._type && reader._type !== 'pdf')) return true;
+    const doc = reader._iframeWindow?.document || reader._iframe?.contentDocument;
+    if (!doc?.querySelector) return false;
+    if (doc.querySelector('[data-kinbo-chat-toggle]')) return true;
+    const host = doc.querySelector('.toolbar .end') || doc.querySelector('.toolbar');
+    if (!host) return false;
+    host.appendChild(toolbarButton(doc, reader));
+    return true;
+  }
+  function scheduleToolbar(reader, attempt = 0) {
+    if (!started || toolbarRetries.has(reader)) return;
+    try { if (attachToolbar(reader)) return; } catch (_) { /* Reader initialization may still be in progress. */ }
+    const win = reader?._iframe?.ownerDocument?.defaultView || Zotero.getMainWindow?.();
+    if (!win?.setTimeout || attempt >= 40 || reader?._iframe?.isConnected === false) return;
+    const timer = win.setTimeout(() => { toolbarRetries.delete(reader); scheduleToolbar(reader, attempt + 1); }, 250);
+    toolbarRetries.set(reader, { win, timer });
+  }
+  function refreshToolbars() {
+    for (const reader of Zotero.Reader?._readers || []) scheduleToolbar(reader);
+  }
   function toolbar(event) {
     const doc = event.doc || event.reader?._iframe?.ownerDocument;
     if (!doc || !event.reader) return;
-    const button = element(doc, 'button', 'Kinbo 对话'); button.setAttribute('title', '打开 Kinbo 论文对话');
-    button.addEventListener('click', () => { const panel = panels.get(event.reader); if (panel) close(panel); else open(event.reader); });
-    for (const prior of toolbarButtons) if (prior.isConnected === false) toolbarButtons.delete(prior);
-    event.append(button); toolbarButtons.add(button);
+    if (doc.querySelector?.('[data-kinbo-chat-toggle]')) return;
+    event.append(toolbarButton(doc, event.reader));
+  }
+  async function openFromWindow(win) {
+    if (!started) throw fail('论文对话尚未加载，请重新启用 Kinbo 插件');
+    const tabID = win.Zotero_Tabs?.selectedID;
+    let reader = tabID && Zotero.Reader.getByTabID?.(tabID);
+    if (!reader) {
+      let item = win.ZoteroPane?.getSelectedItems()?.[0];
+      if (!item) throw fail('请先打开一篇 PDF，或在文库中选中论文');
+      if (!item.isAttachment()) item = await item.getBestAttachment();
+      if (!item || item.attachmentContentType !== 'application/pdf') throw fail('所选论文没有可读取的 PDF 附件');
+      reader = await Zotero.Reader.open(item.id);
+    }
+    if (!reader || (reader._type && reader._type !== 'pdf')) throw fail('论文对话需要打开 PDF 阅读器');
+    if (reader._initPromise) await reader._initPromise;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try { readerView(reader); scheduleToolbar(reader); return await open(reader); } catch (error) {
+        if (!error?.kinboSafe || attempt === 99) throw error;
+      }
+      await new Promise(resolve => win.setTimeout(resolve, 100));
+    }
   }
   function selectionPopup(event) {
     const annotation = event.params?.annotation;
@@ -440,17 +491,25 @@ var KinboPaperChat = (() => {
       started = true;
       Zotero.Reader.registerEventListener('renderToolbar', toolbar, pluginID);
       Zotero.Reader.registerEventListener('renderTextSelectionPopup', selectionPopup, pluginID);
+      observerID = Zotero.Notifier?.registerObserver({ notify(event, type) {
+        if (type === 'tab' && ['add', 'select'].includes(event)) refreshToolbars();
+      } }, ['tab'], 'kinbo-paper-chat-toolbars');
+      refreshToolbars();
     },
     stop() {
       if (!started) return;
       started = false;
       Zotero.Reader.unregisterEventListener('renderToolbar', toolbar);
       Zotero.Reader.unregisterEventListener('renderTextSelectionPopup', selectionPopup);
+      if (observerID !== null) Zotero.Notifier?.unregisterObserver(observerID);
+      observerID = null;
+      for (const { win, timer } of toolbarRetries.values()) win.clearTimeout(timer);
+      toolbarRetries.clear();
       for (const panel of [...panels.values()]) close(panel);
       for (const button of toolbarButtons) button.remove();
       toolbarButtons.clear(); options = null;
     },
-    open,
+    open, openFromWindow,
     // Pure helpers are exposed for deterministic mocked-reader validation.
     helpers: { citation, quoteRects, extractPages, renderText, safeError },
     _test: { citation, quoteRects, extractPages, renderText, safeError, navigate },

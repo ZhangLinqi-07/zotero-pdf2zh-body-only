@@ -29,24 +29,32 @@ class Node {
   get parentElement() { return this.parentNode; }
 }
 
-function fixture() {
+function fixture({ existingReader = false, lateToolbar = false } = {}) {
   const listeners = {}, calls = [], prefs = {}, timers = new Map(); let timerID = 0;
   const win = { JSON, setTimeout(fn) { timers.set(++timerID, fn); return timerID; }, clearTimeout(id) { timers.delete(id); }, addEventListener() {}, removeEventListener() {} };
   const doc = { defaultView: win, createElementNS(ns, tag) { return new Node(doc, tag); }, createTextNode(text) { return new Node(doc, '#text', text); } };
   const host = new Node(doc, 'div'), iframe = new Node(doc, 'iframe'); host.appendChild(iframe);
+  const nativeToolbar = new Node(doc, 'div');
+  doc.toolbarReady = !lateToolbar;
+  doc.querySelector = selector => selector === '[data-kinbo-chat-toggle]'
+    ? nativeToolbar.children.find(node => node.getAttribute('data-kinbo-chat-toggle') === 'true') || null
+    : doc.toolbarReady && ['.toolbar .end', '.toolbar'].includes(selector) ? nativeToolbar : null;
   const pageDiv = new Node(doc, 'div');
   const characters = text => [...text].map((u, index) => ({ u, rect: [index, 0, index + 1, 10] }));
   const fullPages = ['FULL FIRST PAGE', 'FULL FINAL PAGE'];
-  const reader = { itemID: 1, _iframe: iframe, navigate: async value => { reader.navigated = value; },
+  const reader = { itemID: 1, _iframe: iframe, _iframeWindow: { document: doc }, navigate: async value => { reader.navigated = value; },
     _internalReader: { _primaryView: { _iframeWindow: { JSON, PDFViewerApplication: {
       pdfDocument: { numPages: 2, getPageData: async ({ pageIndex }) => ({ chars: characters(fullPages[pageIndex]) }) },
       pdfViewer: { getPageView: () => ({ div: pageDiv, viewport: { convertToViewportRectangle: value => value } }) },
     } } } } };
   const session = { id: 'a'.repeat(32), messages: [], busy: false };
+  const observers = new Map();
   const context = vm.createContext({
     Zotero: {
       Prefs: { get: name => prefs[name], set: (name, value) => { prefs[name] = value; } },
-      Reader: { registerEventListener: (name, listener) => { listeners[name] = listener; }, unregisterEventListener: name => { delete listeners[name]; } },
+      Reader: { _readers: existingReader ? [reader] : [], getByTabID: () => reader,
+        registerEventListener: (name, listener) => { listeners[name] = listener; }, unregisterEventListener: name => { delete listeners[name]; } },
+      Notifier: { registerObserver: observer => { observers.set(1, observer); return 1; }, unregisterObserver: id => observers.delete(id) },
       Items: { get: () => ({ key: 'PDFKEY12', libraryID: 1, parentID: null, getField: () => 'Synthetic paper' }) },
       HTTP: { request: async (method, url, options) => {
         const data = options.body ? JSON.parse(options.body) : undefined; calls.push({ method, url, data });
@@ -62,10 +70,30 @@ function fixture() {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../plugin/paper_chat.js'), 'utf8'), context);
   const chat = context.KinboPaperChat;
   chat.start({ baseURL: () => 'http://127.0.0.1:8893', syncAPI: async () => 'openai' });
-  return { chat, context, reader, doc, calls, listeners, host, iframe, timers, prefs, session, pageDiv };
+  return { chat, context, reader, doc, calls, listeners, host, iframe, timers, prefs, session, pageDiv, nativeToolbar, observers, win };
 }
 
 (async () => {
+  const restored = fixture({ existingReader: true });
+  assert.equal(restored.nativeToolbar.children.length, 1, 'An already-open PDF must receive its toolbar entry without a render event');
+  restored.listeners.renderToolbar({ reader: restored.reader, doc: restored.doc, append: node => restored.nativeToolbar.appendChild(node) });
+  assert.equal(restored.nativeToolbar.children.length, 1, 'Render events must not duplicate a restored toolbar button');
+  assert.equal(restored.calls.length, 0, 'Restoring toolbar controls must not read a paper or invoke any service');
+  const restoredPanel = await restored.chat.openFromWindow({ Zotero_Tabs: { selectedID: 'existing-reader' }, setTimeout: restored.win.setTimeout });
+  assert.equal(restoredPanel.session.id, restored.session.id, 'The menu entry must open the active reader sidebar');
+  assert.equal(restored.calls.filter(call => call.url?.endsWith('/messages')).length, 0);
+  restored.chat.stop();
+  assert.equal(restored.nativeToolbar.children.length, 0); assert.equal(restored.observers.size, 0);
+  const late = fixture({ existingReader: true, lateToolbar: true });
+  assert.equal(late.timers.size, 1);
+  late.doc.toolbarReady = true;
+  for (const [id, callback] of [...late.timers]) { late.timers.delete(id); callback(); }
+  assert.equal(late.nativeToolbar.children.length, 1, 'Delayed reader initialization must still receive its toolbar button');
+  late.chat.stop(); assert.equal(late.timers.size, 0);
+  const switched = fixture(); switched.context.Zotero.Reader._readers.push(switched.reader);
+  switched.observers.get(1).notify('select', 'tab');
+  assert.equal(switched.nativeToolbar.children.length, 1, 'Switching reader tabs must restore a missing entry');
+  switched.chat.stop();
   const f = fixture(), h = f.chat.helpers;
   assert.deepEqual(JSON.parse(JSON.stringify(h.citation('kinbo://page/12?quote=exact%20sentence'))), { page: 12, quote: 'exact sentence' });
   for (const value of ['javascript:alert(1)', 'kinbo://page/0', 'kinbo://page/1?quote=%broken', 'kinbo://page/1/../../etc', 'kinbo://page/9007199254740992']) assert.equal(h.citation(value), null);
