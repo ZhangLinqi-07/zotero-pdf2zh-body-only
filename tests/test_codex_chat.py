@@ -10,7 +10,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'payload'))
-from utils.codex_chat import CodexClient, CodexError, CodexCancelled, _RPC, safe_config, _configured_mcp_names, _launch_prefix
+from utils.codex_chat import (CodexClient, CodexError, CodexCancelled, _RPC, safe_config,
+                             _configured_mcp_names, _launch_prefix, protocol_error, cli_version, find_codex)
 
 
 class FakeRPC:
@@ -143,12 +144,73 @@ class CodexClientTests(unittest.TestCase):
         with patch('utils.codex_chat.find_codex', return_value='codex'), patch.object(self.client, '_control_rpc', return_value=rpc):
             self.assertFalse(self.client.status()['authenticated'])
 
-    def test_login_is_official_device_flow(self):
-        with patch.object(self.client, 'status', return_value={'authenticated': False}), patch.object(self.client, '_control_rpc', return_value=FakeRPC()):
+    def test_login_prefers_official_browser_flow_without_device_setting(self):
+        rpc = FakeRPC()
+        rpc.request = lambda method, params=None, **kwargs: (rpc.calls.append((method, params)) or {
+            'loginId': 'browser1', 'authUrl': 'https://chatgpt.com/oauth/authorize?test=fixture'})
+        with patch.object(self.client, 'status', return_value={'authenticated': False}), patch.object(self.client, '_control_rpc', return_value=rpc):
             login = self.client.start_login()
-        self.assertEqual(login['verificationUri'], 'https://auth.openai.com/codex/device')
-        self.assertEqual(login['userCode'], 'ABCD-TEST')
+        self.assertEqual(rpc.calls[0][1]['type'], 'chatgpt')
+        self.assertEqual(login['verificationUri'], 'https://chatgpt.com/oauth/authorize?test=fixture')
+        self.assertEqual(login['userCode'], '')
         self.assertNotIn('token', json.dumps(login).lower())
+
+    def test_browser_flow_falls_back_only_for_definite_local_callback_failure(self):
+        rpc = FakeRPC()
+        original = rpc.request
+        def request(method, params=None, **kwargs):
+            if params.get('type') == 'chatgpt':
+                rpc.calls.append((method, params))
+                raise protocol_error(method, {'code': -32000, 'message': 'failed to bind: Address already in use'})
+            return original(method, params, **kwargs)
+        rpc.request = request
+        with patch.object(self.client, 'status', return_value={'authenticated': False}), patch.object(self.client, '_control_rpc', return_value=rpc):
+            login = self.client.start_login()
+        self.assertEqual([params['type'] for method, params in rpc.calls], ['chatgpt', 'chatgptDeviceCode'])
+        self.assertEqual(login['userCode'], 'ABCD-TEST')
+
+    def test_login_network_failure_is_not_retried_and_private_errors_are_not_returned(self):
+        rpc = FakeRPC()
+        rpc.request = lambda method, *args, **kwargs: (_ for _ in ()).throw(protocol_error(method, {
+            'code': -32000, 'message': 'TLS connection failed sk-private-secret https://private.test/?token=secret'}))
+        self.client._cli_version = '0.141.0'
+        with patch.object(self.client, 'status', return_value={'authenticated': False}), patch.object(self.client, '_control_rpc', return_value=rpc):
+            with self.assertRaisesRegex(CodexError, '步骤 account/login/start，错误码 -32000，CLI 0.141.0') as error:
+                self.client.start_login()
+        self.assertNotIn('sk-private', str(error.exception))
+        self.assertNotIn('private.test', str(error.exception))
+
+    def test_official_login_url_rejects_untrusted_hosts_and_credentials(self):
+        for url in ('https://chatgpt.com.evil.test/login', 'https://user:secret@chatgpt.com/login',
+                    'http://chatgpt.com/login', 'https://chatgpt.com:secret/login'):
+            rpc = FakeRPC()
+            rpc.request = lambda *args, **kwargs: {'loginId': 'x', 'authUrl': url}
+            with patch.object(self.client, 'status', return_value={'authenticated': False}), patch.object(self.client, '_control_rpc', return_value=rpc):
+                with self.assertRaisesRegex(CodexError, '官方登录地址'):
+                    self.client.start_login()
+
+    def test_status_provides_safe_diagnostic_without_starting_login_or_model(self):
+        rpc = FakeRPC()
+        rpc.request = lambda method, *args, **kwargs: (_ for _ in ()).throw(protocol_error(method, {
+            'code': -32601, 'message': 'method missing PRIVATE_ACCOUNT_SENTINEL'}))
+        with patch('utils.codex_chat.find_codex', return_value='fixture'), patch.object(self.client, '_control_rpc', return_value=rpc):
+            status = self.client.status()
+        self.assertEqual(status['diagnostic']['stage'], 'account/read')
+        self.assertEqual(status['diagnostic']['category'], 'protocol_incompatible')
+        self.assertNotIn('PRIVATE_ACCOUNT_SENTINEL', json.dumps(status))
+
+    def test_mac_homebrew_executable_is_found_when_gui_path_is_missing(self):
+        with patch('utils.codex_chat.platform.system', return_value='Darwin'), \
+             patch('utils.codex_chat.shutil.which', return_value=None), \
+             patch.dict('os.environ', {'KINBO_CODEX_EXECUTABLE': ''}), \
+             patch('utils.codex_chat.Path.is_file', lambda path: str(path).replace('\\', '/') == '/opt/homebrew/bin/codex'), \
+             patch('utils.codex_chat.os.access', return_value=True):
+            self.assertTrue(find_codex().replace('\\', '/').endswith('/opt/homebrew/bin/codex'))
+
+    def test_cli_version_returns_only_version_not_extra_output(self):
+        result = type('Result', (), {'stdout': 'private account info\ncodex-cli 0.141.0-alpha.1\n'})()
+        with patch('utils.codex_chat.subprocess.run', return_value=result):
+            self.assertEqual(cli_version('codex', self.temp.name), '0.141.0-alpha.1')
 
     def test_tools_disabled_and_server_requests_refused(self):
         config = safe_config(True)

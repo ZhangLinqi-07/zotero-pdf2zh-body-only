@@ -20,7 +20,50 @@ import urllib.parse
 
 
 class CodexError(ValueError):
-    pass
+    def __init__(self, message, *, method=None, code=None, category=None):
+        super().__init__(message)
+        self.method, self.code, self.category = method, code, category
+
+
+def protocol_error(method, error):
+    """Classify in memory, then discard raw errors which may contain secrets."""
+    error = error if isinstance(error, dict) else {}
+    code = error.get('code') if type(error.get('code')) is int else None
+    raw = str(error.get('message') or '').lower()
+    known = {'initialize', 'config/read', 'account/read', 'account/login/start',
+             'account/login/cancel', 'model/list', 'thread/start', 'turn/start', 'turn/interrupt'}
+    stage = method if method in known else 'unknown'
+    category = 'request_failed'
+    if stage == 'account/login/start' and any(word in raw for word in (
+            'unknown variant', 'unsupported login', 'unsupported auth', 'not supported',
+            'address already in use', 'failed to bind', 'cannot bind')):
+        category = 'login_flow_unavailable'
+        message = '当前 Codex 无法使用这种登录方式，请尝试另一种官方登录方式'
+    elif code in {-32601, -32602}:
+        category = 'protocol_incompatible'
+        message = 'Codex CLI 协议不兼容，请更新 CLI 后重启 Kinbo 后台'
+    elif any(word in raw for word in ('device code', 'device-code', 'device auth')):
+        category = 'device_login_failed'
+        message = 'Codex 设备码登录失败，请使用浏览器登录或在终端运行 codex login'
+    elif code == 401 or any(word in raw for word in ('unauthorized', 'not authenticated', 'token expired')):
+        category = 'authentication_failed'
+        message = 'Codex 登录已失效或未完成，请重新登录'
+    elif code == 429 or any(word in raw for word in ('usage limit', 'rate limit', 'quota exceeded')):
+        category = 'rate_limited'
+        message = 'Codex 额度不足或请求频繁，请检查账号用量后重试'
+    elif any(word in raw for word in ('connection', 'timeout', 'timed out', 'certificate', 'tls', 'dns', 'proxy')):
+        category = 'connection_failed'
+        message = 'Codex 连接失败，请检查登录网络、代理或证书设置'
+    elif stage == 'account/login/start':
+        message = 'Codex 登录请求失败，请检查登录网络或在终端运行 codex login'
+    elif stage == 'model/list':
+        message = 'Codex 模型列表读取失败，请检查 CLI 版本和账号登录状态'
+    elif stage == 'thread/start':
+        message = 'Codex 会话创建失败，请检查 CLI 版本、账号权限和所选模型'
+    else:
+        message = 'Codex 请求失败，请检查 CLI 版本、账号权限和所选模型'
+    suffix = '，步骤 ' + stage + ('，错误码 ' + str(code) if code is not None else '')
+    return CodexError(message + suffix, method=stage, code=code, category=category)
 
 
 class CodexCancelled(CodexError):
@@ -35,6 +78,12 @@ def find_codex():
     found = shutil.which('codex.exe') or shutil.which('codex') or shutil.which('codex.cmd')
     if found:
         return found
+    if platform.system() == 'Darwin':
+        # GUI-launched services commonly omit Homebrew/user bins from PATH.
+        for candidate in (Path('/opt/homebrew/bin/codex'), Path('/usr/local/bin/codex'),
+                          Path.home() / '.local/bin/codex', Path.home() / '.npm-global/bin/codex'):
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return str(candidate.resolve())
     # Zotero may start its backend with an older PATH than the desktop app.
     local = os.environ.get('LOCALAPPDATA')
     if local:
@@ -65,6 +114,18 @@ def _launch_prefix(executable):
     if node and wrapper.is_file():
         return [node, str(wrapper.resolve())]
     raise CodexError('无法定位 npm Codex 的原生程序或 Node 启动器，请修复 Codex CLI 安装')
+
+
+def cli_version(executable, cwd):
+    try:
+        result = subprocess.run(_launch_prefix(executable) + ['--version'], cwd=cwd,
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                text=True, encoding='utf-8', errors='replace', timeout=3,
+                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        match = re.search(r'(?m)^(?:codex(?:-cli)?\s+)?(\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?)\s*$', result.stdout)
+        return match[1] if match else None
+    except (OSError, subprocess.TimeoutExpired, CodexError):
+        return None
 
 
 def _configured_mcp_names():
@@ -131,7 +192,7 @@ class _RPC:
                                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         threading.Thread(target=self._read, daemon=True).start()
         try:
-            self.request('initialize', {'clientInfo': {'name': 'kinbo', 'title': 'Kinbo', 'version': '0.4.0'},
+            self.request('initialize', {'clientInfo': {'name': 'kinbo', 'title': 'Kinbo', 'version': '0.4.2'},
                                         'capabilities': {'experimentalApi': True}}, timeout=30)
             self.send({'method': 'initialized', 'params': {}})
             effective = self.request('config/read', {'includeLayers': False}).get('config') or {}
@@ -189,10 +250,11 @@ class _RPC:
             try:
                 result = target.get(timeout=timeout)
             except queue.Empty:
-                raise CodexError('Codex 本地响应超时，请检查 CLI 和账号连接') from None
+                raise CodexError('Codex 本地响应超时，请检查 CLI 和账号连接，步骤 ' + method,
+                                 method=method, category='timeout') from None
             if 'error' in result:
                 # Do not expose protocol errors which may include private text.
-                raise CodexError('Codex 请求失败，请检查 CLI 版本、账号权限和所选模型')
+                raise protocol_error(method, result['error']) from None
             return result.get('result') or {}
         finally:
             with self.lock:
@@ -224,6 +286,7 @@ class CodexClient:
         self.root = Path(root_path)
         self._control, self._control_lock = None, threading.RLock()
         self._login = {}
+        self._cli_version, self._version_checked = None, False
         # A fresh empty work directory prevents project AGENTS/config discovery.
         self._workspace = tempfile.TemporaryDirectory(prefix='kinbo-codex-')
         atexit.register(self.close)
@@ -239,6 +302,9 @@ class CodexClient:
         executable = find_codex()
         if not executable:
             raise CodexError('未找到本机 Codex CLI，请先安装并登录 Codex')
+        if not self._version_checked:
+            self._version_checked = True
+            self._cli_version = cli_version(executable, self._workspace.name)
         try:
             return _RPC(executable, self._workspace.name, web_search)
         except OSError:
@@ -262,7 +328,13 @@ class CodexClient:
                     'planType': account.get('planType'),
                     'message': '已登录 Codex，模型可用性以实际请求为准' if authenticated else '请登录 ChatGPT 以使用 Codex'}
         except CodexError as error:
-            return {'available': True, 'authenticated': False, 'message': str(error)}
+            return {'available': True, 'authenticated': False, 'message': str(self._annotate(error)),
+                    'diagnostic': {'stage': error.method, 'code': error.code, 'category': error.category,
+                                   'cliVersion': self._cli_version, 'platform': platform.system()}}
+
+    def _annotate(self, error):
+        suffix = '，CLI ' + self._cli_version if self._cli_version else ''
+        return CodexError(str(error) + suffix, method=error.method, code=error.code, category=error.category)
 
     def models(self):
         with self._control_lock:
@@ -284,14 +356,33 @@ class CodexClient:
 
     def start_login(self):
         with self._control_lock:
-            if self.status()['authenticated']:
-                return self.status()
+            status = self.status()
+            if status['authenticated']:
+                return status
+            if status.get('available') is False or status.get('diagnostic'):
+                raise CodexError(status['message'])
             if self._login.get('loginId') and not self._login.get('completed'):
                 return self.login_status()
-            result = self._control_rpc().request('account/login/start', {'type': 'chatgptDeviceCode'}, timeout=45)
+            rpc = self._control_rpc()
+            try:
+                result = rpc.request('account/login/start', {'type': 'chatgpt'}, timeout=45)
+            except CodexError as error:
+                # Retry only a definite unsupported flow/local callback failure.
+                # Network timeouts can leave a login pending and are not retried.
+                if error.category != 'login_flow_unavailable':
+                    raise self._annotate(error) from None
+                try:
+                    result = rpc.request('account/login/start', {'type': 'chatgptDeviceCode'}, timeout=45)
+                except CodexError as fallback_error:
+                    raise self._annotate(fallback_error) from None
             url = result.get('verificationUrl') or result.get('authUrl')
-            parsed = urllib.parse.urlsplit(url or '')
-            if parsed.scheme != 'https' or parsed.hostname not in {'auth.openai.com', 'auth0.openai.com'}:
+            try:
+                parsed = urllib.parse.urlsplit(url or '')
+                valid = (parsed.scheme == 'https' and parsed.hostname in {'auth.openai.com', 'auth0.openai.com', 'chatgpt.com'}
+                         and not parsed.username and not parsed.password and parsed.port in {None, 443})
+            except (ValueError, TypeError):
+                valid = False
+            if not valid:
                 raise CodexError('Codex 未返回有效的官方登录地址，请在终端运行 codex login')
             self._login = {'loginId': result.get('loginId'), 'verificationUri': url,
                            'verificationUrl': url, 'userCode': result.get('userCode', ''),

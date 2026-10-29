@@ -12,11 +12,11 @@
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "8c5343bfaca860071ec682fad25ab09ad9ff3bfbb6ccde140ac1c74e6f6bb170",
+      "after_sha256": "e5ead2338f4149a304b2cd10b09a8d055a7177bab364deafb5ba576c04674671",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/codex_chat.py": {
-      "after_sha256": "0ee973311319756ffc53290e8c0220849c518784f20968f02ab3e5d694949f2f"
+      "after_sha256": "7757b402c7ec90924874f6fcdf4b15e81a002afef571599af6f699d936f8b23f"
     },
     "utils/codex_provider.py": {
       "after_sha256": "914a65adfc6236546268efdddd3162503cfe33eac518c57d64945fadddcf0253"
