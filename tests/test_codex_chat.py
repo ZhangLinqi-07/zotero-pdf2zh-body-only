@@ -212,6 +212,28 @@ class CodexClientTests(unittest.TestCase):
         with patch('utils.codex_chat.subprocess.run', return_value=result):
             self.assertEqual(cli_version('codex', self.temp.name), '0.141.0-alpha.1')
 
+    def test_mac_npm_symlink_uses_native_binary_without_node_path(self):
+        package = Path(self.temp.name) / 'node_modules/@openai/codex'
+        wrapper = package / 'bin/codex.js'
+        wrapper.parent.mkdir(parents=True)
+        wrapper.write_text('// fixture')
+        native = package / 'node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex/codex'
+        native.parent.mkdir(parents=True)
+        native.write_bytes(b'fixture')
+        with patch('utils.codex_chat.platform.system', return_value='Darwin'), \
+             patch('utils.codex_chat.platform.machine', return_value='arm64'), \
+             patch('utils.codex_chat.os.access', return_value=True), \
+             patch('utils.codex_chat.shutil.which', return_value=None):
+            self.assertEqual(_launch_prefix(str(wrapper)), [str(native)])
+
+    def test_mac_npm_wrapper_uses_node_without_invoking_a_shell(self):
+        wrapper = Path(self.temp.name) / 'codex/bin/codex.js'
+        wrapper.parent.mkdir(parents=True)
+        wrapper.write_text('// fixture')
+        with patch('utils.codex_chat.platform.system', return_value='Darwin'), \
+             patch('utils.codex_chat.shutil.which', return_value='/fixture/node'):
+            self.assertEqual(_launch_prefix(str(wrapper)), ['/fixture/node', str(wrapper)])
+
     def test_tools_disabled_and_server_requests_refused(self):
         config = safe_config(True)
         self.assertFalse(config['features.shell_tool'])

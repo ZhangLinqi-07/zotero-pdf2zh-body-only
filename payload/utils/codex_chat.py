@@ -98,6 +98,26 @@ def find_codex():
 def _launch_prefix(executable):
     """Resolve npm's batch shim without passing CLI arguments through cmd.exe."""
     executable = Path(executable)
+    if platform.system() == 'Darwin':
+        executable = executable.resolve()
+        # npm's POSIX link points at codex.js. Bypass its env-node shebang
+        # when a GUI service does not inherit the terminal's Node PATH.
+        if executable.name == 'codex.js' and executable.parent.name == 'bin':
+            architecture = 'arm64' if platform.machine().lower() in {'arm64', 'aarch64'} else 'x64'
+            triple = 'aarch64-apple-darwin' if architecture == 'arm64' else 'x86_64-apple-darwin'
+            package = executable.parent.parent
+            optional = '@openai/codex-darwin-' + architecture
+            for root in (package, package / 'node_modules' / optional, package.parent.parent / optional):
+                native = root / 'vendor' / triple / 'codex/codex'
+                if native.is_file() and os.access(native, os.X_OK):
+                    return [str(native)]
+            node = shutil.which('node')
+            if not node:
+                node = next((str(path) for path in (Path('/opt/homebrew/bin/node'), Path('/usr/local/bin/node'))
+                             if path.is_file() and os.access(path, os.X_OK)), None)
+            if node:
+                return [node, str(executable)]
+            raise CodexError('Codex npm 启动器需要可用的 Node 或原生程序，请修复 CLI 安装后重启后台')
     if executable.suffix.lower() not in {'.cmd', '.bat'}:
         return [str(executable)]
     architecture = 'arm64' if platform.machine().lower() in {'arm64', 'aarch64'} else 'x64'
