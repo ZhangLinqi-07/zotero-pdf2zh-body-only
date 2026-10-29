@@ -224,7 +224,7 @@ class CodexClientTests(unittest.TestCase):
              patch('utils.codex_chat.platform.machine', return_value='arm64'), \
              patch('utils.codex_chat.os.access', return_value=True), \
              patch('utils.codex_chat.shutil.which', return_value=None):
-            self.assertEqual(_launch_prefix(str(wrapper)), [str(native)])
+            self.assertEqual(_launch_prefix(str(wrapper)), [str(native.resolve())])
 
     def test_mac_npm_wrapper_uses_node_without_invoking_a_shell(self):
         wrapper = Path(self.temp.name) / 'codex/bin/codex.js'
@@ -232,7 +232,7 @@ class CodexClientTests(unittest.TestCase):
         wrapper.write_text('// fixture')
         with patch('utils.codex_chat.platform.system', return_value='Darwin'), \
              patch('utils.codex_chat.shutil.which', return_value='/fixture/node'):
-            self.assertEqual(_launch_prefix(str(wrapper)), ['/fixture/node', str(wrapper)])
+            self.assertEqual(_launch_prefix(str(wrapper)), ['/fixture/node', str(wrapper.resolve())])
 
     def test_tools_disabled_and_server_requests_refused(self):
         config = safe_config(True)
