@@ -28,12 +28,15 @@ class PluginPackageTests(unittest.TestCase):
             archive.writestr('bootstrap.js', 'var chromeHandle;\nasync function startup() {\n    Zotero.pdf2zh.hooks.onStartup();\n}\n')
             archive.writestr('prefs.js', 'pref("server", "http://localhost:8890");')
         (self.root / 'downloads.json').write_text(json.dumps({'plugin': {'sha256': hashlib.sha256(self.upstream.read_bytes()).hexdigest()}}))
-        for name in ('plugin/body_only_bridge.js', 'plugin/reading_note.js', 'plugin/paper_chat.js',
+        for name in ('plugin/body_only_bridge.js', 'plugin/reading_note.js', 'plugin/paper_chat.js', 'plugin/backend_update.js',
                      'payload/web/vendor/marked.js', 'payload/web/vendor/purify.js', 'LICENSE', 'NOTICE.md'):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('/* Public build fixture */')
         self.public = self.root / 'public.xpi'
+        bundled = patch.object(build_plugin, 'build_bytes', return_value=(b'fixture bundle', {'backendVersion': '0.4.1'}))
+        bundled.start()
+        self.addCleanup(bundled.stop)
 
     def build(self, output=None, server_url=None):
         with patch.object(build_plugin, 'ROOT', self.root):
@@ -78,10 +81,10 @@ class PluginPackageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'local server'):
             make_update(self.public, 'v0.3.5')
 
-    def test_shipped_update_document_uses_the_current_plugin_version(self):
+    def test_shipped_update_document_preserves_a_published_stable_version(self):
         data = json.loads((ROOT / 'updates.json').read_text(encoding='utf-8'))
         update = data['addons']['pdf2zh@guaguastandup.com']['updates'][0]
-        self.assertEqual(update['version'], build_plugin.PLUGIN_VERSION)
+        self.assertLessEqual(tuple(map(int, update['version'].split('.'))), tuple(map(int, build_plugin.PLUGIN_VERSION.split('.'))))
         self.assertEqual(update['applications']['zotero']['strict_max_version'], build_plugin.MAX_ZOTERO_VERSION)
         self.assertRegex(update['update_hash'], r'^sha256:[a-f0-9]{64}$')
 

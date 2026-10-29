@@ -22,3 +22,5 @@ jobs:
       - run: node tests/test_reading_bridge.js
       - run: node tests/test_paper_chat_ui.js
       - run: node tests/test_reading_backend_ui.js
+      - run: node tests/test_backend_update.js
+      - run: python tests/integration_backend_update.py

@@ -31,3 +31,5 @@ layout_plans/
 layout.json
 reading.json
 *.xpi
+.kinbo-updates/
+.kinbo-backend.json

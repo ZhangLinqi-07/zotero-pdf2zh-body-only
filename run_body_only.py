@@ -50,7 +50,7 @@ def main():
                         version = json.load(check).get('version')
                 except (OSError, ValueError):
                     version = None
-                if version == '0.4.0pre1':
+                if version == '0.4.1':
                     print(f"Body-only server is already available on port {args.port}.")
                     return
                 raise SystemExit('An older body-only service uses this port. Close its window, or choose --port 8892.')
@@ -80,7 +80,7 @@ def main():
         )
         (logs / f"server-{args.port}.pid").write_text(str(process.pid), encoding="ascii")
         result = process.wait()
-    if result:
+    if result and result != 75:  # The update worker owns the next service process.
         raise SystemExit(f"Server exited with {result}. Check the log files.")
 
 

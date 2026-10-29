@@ -12,7 +12,7 @@
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "bca3d7b1bbd0946d85b4356f385e57f9de852f11fdeaa418d3fe309383eb6a95",
+      "after_sha256": "8c5343bfaca860071ec682fad25ab09ad9ff3bfbb6ccde140ac1c74e6f6bb170",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/codex_chat.py": {
@@ -34,6 +34,12 @@
     "utils/execute.py": {
       "after_sha256": "6397138d3101e66f006d1bbea00bff322de2caac7715c05c517db24615453483",
       "before_sha256": "41537bfc5eb078c4d47f193990d47180e698c34aa5b36a2a39dac8ff84ad624e"
+    },
+    "utils/kinbo_update.py": {
+      "after_sha256": "6f47d11cf9f9736f11dd39c32ea026b6768810db6d7efe9f160beb6dd2d3bc97"
+    },
+    "utils/kinbo_update_worker.py": {
+      "after_sha256": "1d0d60f5dc9991783aaf84040ebcd5a97900d46521fe481ed25d19ed0f1753d4"
     },
     "utils/layout_overflow.py": {
       "after_sha256": "d1b25bf3e94eb832d35ff7e9644c367c37f15c7c60b106d287c5fabfc72e4154"

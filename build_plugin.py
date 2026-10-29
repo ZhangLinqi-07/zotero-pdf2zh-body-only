@@ -2,15 +2,17 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Reproducibly add the readable body-only bridge to the pinned upstream XPI."""
 import argparse
+import base64
 import hashlib
 import json
 from pathlib import Path
 import zipfile
 import urllib.parse
+from scripts.build_backend_bundle import build_bytes
 
 ROOT = Path(__file__).resolve().parent
-PLUGIN_VERSION = '4.1.7.10'
-DEVELOPMENT_VERSION = '4.1.7.11pre2'
+PLUGIN_VERSION = '4.1.7.12'
+DEVELOPMENT_VERSION = '4.1.7.13pre1'
 UPDATE_URL = 'https://raw.githubusercontent.com/ZhangLinqi-07/zotero-pdf2zh-body-only/main/updates.json'
 MAX_ZOTERO_VERSION = '10.0.*'
 
@@ -59,6 +61,10 @@ def build(source, destination, server_url=None, development=False):
     files['content/scripts/body-only.js'] = (ROOT / 'plugin/body_only_bridge.js').read_bytes()
     files['content/scripts/body-only-note.js'] = (ROOT / 'plugin/reading_note.js').read_bytes()
     files['content/scripts/kinbo-paper-chat.js'] = (ROOT / 'plugin/paper_chat.js').read_bytes()
+    files['content/scripts/kinbo-updater.js'] = (ROOT / 'plugin/backend_update.js').read_bytes()
+    bundle, bundle_info = build_bytes(ROOT)
+    files['content/kinbo-backend.b64'] = base64.b64encode(bundle)
+    files['content/kinbo-backend.json'] = json.dumps(bundle_info, sort_keys=True).encode('utf-8')
     for source, target in [('marked.js', 'body-only-marked.js'), ('purify.js', 'body-only-purify.js')]:
         files['content/scripts/' + target] = (ROOT / 'payload/web/vendor' / source).read_bytes()
     for license in (ROOT / 'payload/web/vendor').glob('*LICENSE*'):

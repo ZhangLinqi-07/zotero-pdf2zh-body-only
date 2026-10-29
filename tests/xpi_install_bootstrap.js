@@ -46,11 +46,19 @@ function startup() {
         if (Services.prefs.getStringPref(apiPref) !== savedApi) throw new Error('Public package changed existing API configuration');
         const menu = Zotero.getMainWindow().document.getElementById('zotero-itemmenu-pdf2zh');
         if (menu?.getAttribute('label') !== 'Kinbo') throw new Error('Installed plugin did not start the Kinbo menu');
+        const rootURI = active.getResourceURI('').spec;
+        const bundled = JSON.parse(await Zotero.File.getResourceAsync(rootURI + 'content/kinbo-backend.json'));
+        const encoded = await Zotero.File.getResourceAsync(rootURI + 'content/kinbo-backend.b64');
+        if (Zotero.getMainWindow().atob(encoded).length !== bundled.bytes) throw new Error('Bundled backend could not be read by native Zotero');
+        const updateScope = { Zotero, Services };
+        Services.scriptloader.loadSubScript(rootURI + 'content/scripts/kinbo-updater.js', updateScope);
+        if (typeof updateScope.KinboBackendUpdate?.tick !== 'function') throw new Error('Updater failed to load');
         await finish({ status: 'passed', zoteroVersion: Zotero.version, oldPackageRejected: true,
           oldError: invalid.error, regularXpiInstall: true, addonId: active.id, addonVersion: active.version,
           active: active.isActive, updateURL: active.updateURL, existingServerPreserved: true,
           apiConfigurationPreserved: true,
-          kinboMenuLoaded: true, userProfileUsed: false, externalTranslationApiCalls: 0 });
+          kinboMenuLoaded: true, backendBundleReadable: true, backendVersion: bundled.backendVersion,
+          userProfileUsed: false, externalTranslationApiCalls: 0 });
       } catch (error) {
         await finish({ status: 'failed', error: String(error), stack: error.stack });
       }

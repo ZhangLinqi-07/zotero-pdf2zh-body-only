@@ -43,6 +43,7 @@ from utils.layout_preservation import read_layout_settings, save_layout_settings
 from utils.deep_reading import register_reading
 from utils.paper_chat import register_paper_chat
 from utils.codex_provider import register_codex_provider
+from utils.kinbo_update import register_updater
 from utils.shared_api import _WRITE_LOCK as shared_api_lock
 
 _VALUE_ERROR_RE = re.compile(r'(?m)^ValueError:\s*(?P<msg>.+)$')
@@ -112,6 +113,7 @@ class PDFTranslator:
             self.env_manager = VirtualEnvManager(config_path[venv], venv_name, args.env_tool, args.enable_mirror, args.skip_install, args.mirror_source)
         self.cropper = Cropper()
         self.setup_routes()
+        self.updater = register_updater(self, root_path, '0.4.1', getattr(args, 'port', 8891))
 
     def setup_routes(self):
         # 新增：首页路由 - 提供 index.html 前端进度监控页面
@@ -145,7 +147,7 @@ class PDFTranslator:
         self.app.add_url_rule('/api/config', 'config', self.get_config)
         self.app.add_url_rule('/api/section-settings', 'section_settings', self.section_settings, methods=['GET', 'POST'])
         self.app.add_url_rule('/api/layout-settings', 'layout_settings', self.layout_settings, methods=['GET', 'POST'])
-        self.app.add_url_rule('/api/capabilities', 'capabilities', lambda: jsonify(status='success', version='0.4.0pre1', deepReading=True, sharedAPI=True, fullPageCompare=True, zoteroNotes=True, directReading=True, pdfReading=True, autoContinueReading=True, readingSearch=True, fullPageImageReading=True, translationCoverage=True, paperChat=True, codexBackend=True, codexTranslation=True))
+        self.app.add_url_rule('/api/capabilities', 'capabilities', lambda: jsonify(status='success', version='0.4.1', backendUpdate=True, updateInstance=os.environ.get('KINBO_UPDATE_INSTANCE', ''), deepReading=True, sharedAPI=True, fullPageCompare=True, zoteroNotes=True, directReading=True, pdfReading=True, autoContinueReading=True, readingSearch=True, fullPageImageReading=True, translationCoverage=True, paperChat=True, codexBackend=True, codexTranslation=True))
         self.app.add_url_rule('/body-only-assets/<path:filename>', 'body_only_assets', lambda filename: send_from_directory(os.path.join(root_path, 'web'), filename))
         self.reading = register_reading(self.app, root_path)
         self.paper_chat = register_paper_chat(self.app, root_path)

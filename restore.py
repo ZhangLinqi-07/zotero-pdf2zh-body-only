@@ -26,7 +26,15 @@ def restore(server_dir, force=False):
             atomic_write(target, inside(backup, record["path"]).read_bytes())
         elif target.exists():
             target.unlink()
-    state_path.unlink()
+    if (backup / 'installed-state.json').is_file():
+        atomic_write(state_path, (backup / 'installed-state.json').read_bytes())
+        info = backup / 'backend-info.json'
+        if info.is_file():
+            atomic_write(server / '.kinbo-backend.json', info.read_bytes())
+        else:
+            (server / '.kinbo-backend.json').unlink(missing_ok=True)
+    else:
+        state_path.unlink()
     return {"status": "restored", "server_dir": str(server), "backup_retained": str(backup)}
 
 

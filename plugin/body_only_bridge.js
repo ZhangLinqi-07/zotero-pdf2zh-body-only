@@ -3,7 +3,7 @@
 var BodyOnlyBridge = (() => {
   const entries = new Map();
   const prefix = 'extensions.zotero.pdf2zh.';
-  let active = false, timer = null, syncing = false, noteTools = null, paperChat = null;
+  let active = false, timer = null, syncing = false, noteTools = null, paperChat = null, updater = null;
   const readingWindows = new Map(), preparing = new Set();
   class SafeReadingError extends Error {}
   function progressWindow(text) {
@@ -235,6 +235,9 @@ var BodyOnlyBridge = (() => {
       model.setAttribute('label', '模型后端与 Codex 登录');
       model.addEventListener('command', () => Zotero.launchURL(baseURL() + '/#reading'));
       popup.appendChild(model); nodes.push(model);
+      const update = win.document.createXULElement('menuitem'); update.id = 'kinbo-backend-update';
+      update.setAttribute('label', '后台更新状态与重试');
+      update.addEventListener('command', () => updater?.tick(true)); popup.appendChild(update); nodes.push(update);
       entries.set(win, { nodes, labels });
     }
   }
@@ -260,7 +263,15 @@ var BodyOnlyBridge = (() => {
         } catch (_) { Zotero.logError(new Error('Kinbo paper chat initialization failed')); }
       }
       if (!active) { active = true; pollNotes(); }
+      if (!updater && typeof BodyOnlyRootURI === 'string') {
+        try {
+          const scope = { Zotero, Services };
+          Services.scriptloader.loadSubScript(BodyOnlyRootURI + 'content/scripts/kinbo-updater.js', scope);
+          updater = scope.KinboBackendUpdate;
+          updater.start({ baseURL, rootURI: BodyOnlyRootURI });
+        } catch (_) { Zotero.logError(new Error('Kinbo updater initialization failed')); }
+      }
     },
-    stop() { active = false; paperChat?.stop(); paperChat = null; if (timer) Zotero.getMainWindow()?.clearTimeout(timer); timer = null; noteTools = null; for (const view of readingWindows.values()) view.popup.close(); readingWindows.clear(); for (const win of [...entries.keys()]) removeWindow(win); },
+    stop() { active = false; updater?.stop(); updater = null; paperChat?.stop(); paperChat = null; if (timer) Zotero.getMainWindow()?.clearTimeout(timer); timer = null; noteTools = null; for (const view of readingWindows.values()) view.popup.close(); readingWindows.clear(); for (const win of [...entries.keys()]) removeWindow(win); },
   };
 })();
