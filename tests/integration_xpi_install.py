@@ -16,6 +16,7 @@ def main():
     parser.add_argument('--zotero', required=True)
     parser.add_argument('--old-xpi', required=True)
     parser.add_argument('--new-xpi', required=True)
+    parser.add_argument('--update-from-xpi', help='Install this older version and exercise the public Check for Updates channel')
     parser.add_argument('--output-dir')
     options = parser.parse_args()
     folder = Path(options.output_dir or tempfile.mkdtemp(prefix='kinbo-xpi-install-')).resolve()
@@ -36,7 +37,8 @@ def main():
     (profile / 'user.js').write_text(''.join('user_pref(' + json.dumps(k) + ', ' + json.dumps(v) + ');\n' for k, v in prefs.items()), encoding='utf-8')
     result = folder / 'result.json'
     constants = {'TEST_RESULT_PATH': str(result), 'TEST_OLD_XPI': str(Path(options.old_xpi).resolve()),
-                 'TEST_NEW_XPI': str(Path(options.new_xpi).resolve())}
+                 'TEST_NEW_XPI': str(Path(options.new_xpi).resolve()),
+                 'TEST_UPDATE_FROM_XPI': str(Path(options.update_from_xpi).resolve()) if options.update_from_xpi else None}
     bootstrap = ''.join('var ' + key + ' = ' + json.dumps(value) + ';\n' for key, value in constants.items())
     bootstrap += Path(__file__).with_name('xpi_install_bootstrap.js').read_text(encoding='utf-8')
     metadata = {'manifest_version': 2, 'name': 'Isolated native XPI install regression', 'version': '1.0',

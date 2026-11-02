@@ -12,11 +12,11 @@
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "e5ead2338f4149a304b2cd10b09a8d055a7177bab364deafb5ba576c04674671",
+      "after_sha256": "7d6d4e19af70ab18faf3abc17d5542ac52d250c23211ab92cecabcedf9d9350d",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/codex_chat.py": {
-      "after_sha256": "642c7a65ac493649413cdd707c1c5b11ab707d470c3b57715d3d7e51b1f70c15"
+      "after_sha256": "fcef5ada60a182892b5b47f20a53cf01e0097c4b86f01f9f0b65e6aed1ad38b7"
     },
     "utils/codex_provider.py": {
       "after_sha256": "914a65adfc6236546268efdddd3162503cfe33eac518c57d64945fadddcf0253"
@@ -70,6 +70,9 @@
     },
     "utils/web_research.py": {
       "after_sha256": "155ded28df6df9b7f833617d3f7ab4faf3fa40c5e1c0bfb6e931e9cd7a8b51ae"
+    },
+    "utils/windows_autostart.py": {
+      "after_sha256": "b88a415f2a634d793a442ef8730513826d843d67905b767e41e015bf4bb9e263"
     },
     "web/enhancements.css": {
       "after_sha256": "03cd3f05a6f7f5a34d87333d00a23372a747bd47bb9c021bfae036858e418ddb"

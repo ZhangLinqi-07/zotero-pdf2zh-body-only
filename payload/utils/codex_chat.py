@@ -212,7 +212,7 @@ class _RPC:
                                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         threading.Thread(target=self._read, daemon=True).start()
         try:
-            self.request('initialize', {'clientInfo': {'name': 'kinbo', 'title': 'Kinbo', 'version': '0.4.2'},
+            self.request('initialize', {'clientInfo': {'name': 'kinbo', 'title': 'Kinbo', 'version': '0.4.3'},
                                         'capabilities': {'experimentalApi': True}}, timeout=30)
             self.send({'method': 'initialized', 'params': {}})
             effective = self.request('config/read', {'includeLayers': False}).get('config') or {}

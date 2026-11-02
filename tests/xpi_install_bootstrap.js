@@ -24,10 +24,10 @@ function startup() {
         Services.prefs.setStringPref(apiPref, savedApi);
         const invalid = await AddonManager.getInstallForFile(Zotero.File.pathToFile(TEST_OLD_XPI));
         if (invalid.error !== AddonManager.ERROR_CORRUPT_FILE) throw new Error('Old package was not rejected as corrupt: ' + invalid.error);
-        const candidate = await AddonManager.getInstallForFile(Zotero.File.pathToFile(TEST_NEW_XPI));
+        let candidate = await AddonManager.getInstallForFile(Zotero.File.pathToFile(TEST_NEW_XPI));
         if (candidate.error) throw new Error('New package failed validation: ' + candidate.error);
         if (!candidate.addon.isCompatible) throw new Error('New package is incompatible');
-        const addon = await new Promise((resolve, reject) => {
+        const install = candidate => new Promise((resolve, reject) => {
           candidate.addListener({
             onInstallEnded: (install, installed) => resolve(installed),
             onInstallFailed: install => reject(new Error('Installation failed: ' + install.error)),
@@ -35,6 +35,19 @@ function startup() {
           });
           candidate.install().catch(reject);
         });
+        if (TEST_UPDATE_FROM_XPI) {
+          const expectedVersion = candidate.addon.version;
+          const previous = await AddonManager.getInstallForFile(Zotero.File.pathToFile(TEST_UPDATE_FROM_XPI));
+          if (previous.error) throw new Error('Previous release failed validation: ' + previous.error);
+          const oldAddon = await install(previous);
+          candidate = await new Promise((resolve, reject) => oldAddon.findUpdates({
+            onUpdateAvailable(addon, update) { resolve(update); },
+            onNoUpdateAvailable() { reject(new Error('Public update channel offered no update')); },
+            onUpdateFinished(addon, error) { if (error) reject(new Error('Public update lookup failed: ' + error)); },
+          }, AddonManager.UPDATE_WHEN_USER_REQUESTED));
+          if (candidate.version !== expectedVersion) throw new Error('Public channel offered unexpected version: ' + candidate.version);
+        }
+        const addon = await install(candidate);
         for (let i = 0; i < 100; i++) {
           const menu = Zotero.getMainWindow().document.getElementById('zotero-itemmenu-pdf2zh');
           if (menu?.getAttribute('label') === 'Kinbo') break;
@@ -58,6 +71,7 @@ function startup() {
           active: active.isActive, updateURL: active.updateURL, existingServerPreserved: true,
           apiConfigurationPreserved: true,
           kinboMenuLoaded: true, backendBundleReadable: true, backendVersion: bundled.backendVersion,
+          publicUpdateChannelVerified: Boolean(TEST_UPDATE_FROM_XPI),
           userProfileUsed: false, externalTranslationApiCalls: 0 });
       } catch (error) {
         await finish({ status: 'failed', error: String(error), stack: error.stack });

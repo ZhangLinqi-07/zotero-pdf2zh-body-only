@@ -11,8 +11,8 @@ import urllib.parse
 from scripts.build_backend_bundle import build_bytes
 
 ROOT = Path(__file__).resolve().parent
-PLUGIN_VERSION = '4.1.7.14'
-DEVELOPMENT_VERSION = '4.1.7.15pre1'
+PLUGIN_VERSION = '4.1.7.15'
+DEVELOPMENT_VERSION = '4.1.7.16pre1'
 UPDATE_URL = 'https://raw.githubusercontent.com/ZhangLinqi-07/zotero-pdf2zh-body-only/main/updates.json'
 MAX_ZOTERO_VERSION = '10.0.*'
 

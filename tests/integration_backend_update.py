@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / 'tests'))
 from test_backend_update import pack
 from utils.kinbo_update_worker import digest, write_json
+from install import VERSION
 
 SERVER = '''from pathlib import Path
 import os, sys, json
@@ -72,9 +73,10 @@ def main():
                     time.sleep(.1)
                 headers = {'X-Kinbo-Client': 'zotero'}
                 token = get('/api/kinbo/update', headers)['token']
-                files['server.py'] = SERVER.replace('VERSION', '0.4.2').encode()
-                content, sha, _ = pack(files)
-                data = json.dumps({'backendVersion': '0.4.2', 'sha256': sha,
+                files['server.py'] = SERVER.replace('VERSION', VERSION).encode()
+                files['utils/windows_autostart.py'] = (ROOT / 'payload/utils/windows_autostart.py').read_bytes()
+                content, sha, _ = pack(files, version=VERSION)
+                data = json.dumps({'backendVersion': VERSION, 'sha256': sha,
                                    'bundle': base64.b64encode(content).decode()}).encode()
                 req = urllib.request.Request(base + '/api/kinbo/update', data=data, headers={**headers,
                         'X-Kinbo-Update-Token': token, 'Content-Type': 'application/json'})
@@ -88,7 +90,7 @@ def main():
                     process.poll()  # Reap the old POSIX server so its PID is no longer alive.
                     try:
                         state = get('/api/kinbo/update', headers)
-                        if state['version'] == '0.4.2' and state['update']['state'] == 'completed':
+                        if state['version'] == VERSION and state['update']['state'] == 'completed':
                             completed = True
                             break
                     except OSError: pass
@@ -96,8 +98,10 @@ def main():
                 assert completed, (root / 'test.log').read_text(encoding='utf-8', errors='replace')
                 assert (root / 'config/config.toml').read_bytes() == b'PRIVATE_KEY_SENTINEL'
                 assert (root / 'reading/private-note.md').read_bytes() == b'PRIVATE_NOTE_SENTINEL'
+                assert (root / 'utils/windows_autostart.py').read_bytes() == files['utils/windows_autostart.py']
                 print(json.dumps({'status': 'passed', 'idleWaitVerified': True, 'realRestart': True,
-                                  'version': '0.4.2', 'configurationPreserved': True, 'notesPreserved': True}))
+                                  'version': VERSION, 'autostartModuleDelivered': True,
+                                  'configurationPreserved': True, 'notesPreserved': True}))
             finally:
                 if process.poll() is None:
                     process.terminate()
