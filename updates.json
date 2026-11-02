@@ -3,9 +3,9 @@
     "pdf2zh@guaguastandup.com": {
       "updates": [
         {
-          "version": "4.1.7.14",
-          "update_link": "https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.2/zotero-pdf2zh-body-only-v0.4.2.xpi",
-          "update_hash": "sha256:4d2aa71951765f651aab6e22646bc28dd1a32a4e20ea2ab6b0bd212b4b6eaa28",
+          "version": "4.1.7.15",
+          "update_link": "https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.3/zotero-pdf2zh-body-only-v0.4.3.xpi",
+          "update_hash": "sha256:1a65af87c7f6b436220333d26cdb1b28a30b84a31c78b88d6c8233f58bc9d0d6",
           "applications": {
             "zotero": {
               "strict_min_version": "6.999",
