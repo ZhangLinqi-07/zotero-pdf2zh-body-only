@@ -28,11 +28,16 @@ class PluginPackageTests(unittest.TestCase):
             archive.writestr('bootstrap.js', 'var chromeHandle;\nasync function startup() {\n    Zotero.pdf2zh.hooks.onStartup();\n}\n')
             archive.writestr('prefs.js', 'pref("server", "http://localhost:8890");')
         (self.root / 'downloads.json').write_text(json.dumps({'plugin': {'sha256': hashlib.sha256(self.upstream.read_bytes()).hexdigest()}}))
-        for name in ('plugin/body_only_bridge.js', 'plugin/reading_note.js', 'plugin/paper_chat.js', 'plugin/backend_update.js',
+        for name in ('plugin/body_only_bridge.js', 'plugin/reading_note.js', 'plugin/paper_chat.js', 'plugin/paper_chat_reader.js',
+                     'plugin/paper_chat_view.js', 'plugin/paper_chat.css', 'plugin/backend_update.js',
                      'payload/web/vendor/marked.js', 'payload/web/vendor/purify.js', 'LICENSE', 'NOTICE.md'):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('/* Public build fixture */')
+        for name in ('mark', 'read', 'stop', 'chat', 'settings', 'refresh'):
+            icon = self.root / f'plugin/icons/kinbo-{name}.svg'
+            icon.parent.mkdir(parents=True, exist_ok=True)
+            icon.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
         self.public = self.root / 'public.xpi'
         bundled = patch.object(build_plugin, 'build_bytes', return_value=(b'fixture bundle', {'backendVersion': '0.4.1'}))
         bundled.start()
@@ -47,6 +52,11 @@ class PluginPackageTests(unittest.TestCase):
         with zipfile.ZipFile(self.public) as archive:
             metadata = json.loads(archive.read('manifest.json'))
             bootstrap = archive.read('bootstrap.js')
+            for name in ('reader', 'view', 'styles'):
+                self.assertIn(f'content/scripts/kinbo-paper-chat-{name}.js', archive.namelist())
+            self.assertTrue(archive.read('content/scripts/kinbo-paper-chat-styles.js').startswith(b'var KinboChatStyles = '))
+            for name in ('mark', 'read', 'stop', 'chat', 'settings', 'refresh'):
+                self.assertIn(f'content/icons/kinbo-{name}.svg', archive.namelist())
         app = metadata['applications']['zotero']
         self.assertEqual(app['id'], 'pdf2zh@guaguastandup.com')
         self.assertEqual(app['update_url'], build_plugin.UPDATE_URL)

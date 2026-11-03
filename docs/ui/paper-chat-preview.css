@@ -1,0 +1,46 @@
+/* Hallmark · theme: custom · shape: app screen · idea: evidence beside the paper · posture: restrained · scope: app */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: E, verify the real 336px side pane and keyboard states at every viewport. */
+/* SPDX-License-Identifier: AGPL-3.0-only */
+:root {
+  --preview-bg: #e9edf0; --preview-chrome: #f7f8f9; --preview-ink: #23282d;
+  --preview-muted: #626a73; --preview-line: #c6ced5; --preview-paper: #ffffff;
+  --preview-highlight: #f4e5ad; --preview-focus: #246579;
+  --preview-font-paper: "Georgia", "Times New Roman", serif;
+  --preview-font: "Aptos", "Segoe UI Variable Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+}
+:root[data-theme="dark"] {
+  --preview-bg: #171a1e; --preview-chrome: #202327; --preview-ink: #e5e9ed;
+  --preview-muted: #b0b8c1; --preview-line: #424a52; --preview-paper: #262a2f;
+  --preview-highlight: #66582d; --preview-focus: #a1d2e4; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; height: 100dvh; display: flex; flex-direction: column; color: var(--preview-ink); background: var(--preview-bg); font: 13px/1.5 var(--preview-font); }
+.preview-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--preview-line); background: var(--preview-chrome); }
+.preview-bar strong { margin-inline-end: auto; font-size: 16px; }
+.preview-bar strong span { font-size: 12px; font-weight: 400; color: var(--preview-muted); }
+.preview-bar label { display: flex; align-items: center; gap: 4px; }
+.preview-bar :is(select, button) { font: inherit; color: inherit; background: var(--preview-paper); border: 1px solid var(--preview-line); border-radius: 6px; min-height: 32px; padding: 4px 8px; }
+.preview-bar :is(select, button, input):focus-visible { outline: 2px solid var(--preview-focus); outline-offset: 2px; }
+.preview-bar button { cursor: pointer; }
+.preview-bar button:hover { background: var(--preview-bg); }
+.preview-notice { margin: 0; padding: 8px 16px; font-size: 12px; background: var(--preview-chrome); color: var(--preview-muted); }
+.preview-workspace { display: flex; flex: 1; min-height: 0; min-width: 0; }
+.preview-reader { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.preview-reader-toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 8px 16px; background: var(--preview-chrome); border-block: 1px solid var(--preview-line); color: var(--preview-muted); font-size: 12px; }
+.preview-page-scroll { overflow: auto; flex: 1; padding: 32px; }
+.preview-paper { max-width: 760px; margin: auto; padding: 48px 48px 24px; background: var(--preview-paper); min-height: 100%; }
+.preview-paper-journal { font-size: 11px; color: var(--preview-muted); margin: 0 0 24px; }
+.preview-paper h2 { font-family: var(--preview-font-paper); font-size: 28px; line-height: 1.15; margin: 0 0 12px; }
+.preview-paper-subtitle { color: var(--preview-muted); margin: 0 0 32px; }
+.preview-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-family: var(--preview-font-paper); font-size: 13px; line-height: 1.7; }
+.preview-columns h3 { font-size: 14px; margin: 0 0 12px; }
+.preview-columns p { margin: 0 0 16px; }
+.preview-paper footer { display: flex; justify-content: space-between; margin-top: 32px; font-size: 12px; color: var(--preview-muted); }
+.preview-paper .preview-evidence { background: var(--preview-highlight); }
+.preview-workspace > .kinbo-paper-chat { max-width: none; min-width: 264px; }
+.preview-workspace.preview-narrow > .kinbo-paper-chat { flex-basis: 264px; width: 264px; }
+@media (max-width: 1000px) { .preview-page-scroll { padding: 16px; } .preview-paper { padding: 24px 20px; } .preview-columns { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .preview-reader { display: none; } .preview-workspace > .kinbo-paper-chat { width: 100%; max-width: 100%; flex: 1; border: 0; } .preview-bar { gap: 8px; padding-inline: 12px; } .preview-bar strong { flex-basis: 100%; } .preview-notice { padding-inline: 12px; } }
+
+html, body { overflow-x: clip; }
+.preview-paper h2 { text-wrap: balance; }

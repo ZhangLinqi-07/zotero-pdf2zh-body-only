@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Exercise Kinbo chat UI against native PDF.js in a disposable Zotero profile."""
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -75,11 +76,15 @@ def main():
                                            for key, value in prefs.items()), encoding='utf-8')
     result = folder / 'result.json'
     xpi_path = Path(options.xpi).resolve()
-    chat_source = folder / 'packaged-kinbo-paper-chat.js'
+    chat_sources = []
     with zipfile.ZipFile(xpi_path) as archive:
-        chat_source.write_bytes(archive.read('content/scripts/kinbo-paper-chat.js'))
+        for suffix in ('-styles', '-reader', '-view', ''):
+            name = 'kinbo-paper-chat' + suffix + '.js'
+            source = folder / ('packaged-' + name)
+            source.write_bytes(archive.read('content/scripts/' + name))
+            chat_sources.append(str(source))
     constants = {'CHAT_TEST_RESULT': str(result), 'CHAT_TEST_XPI': str(Path(options.xpi).resolve()),
-                 'CHAT_TEST_PDF': str(pdf_path), 'CHAT_TEST_SOURCE': str(chat_source),
+                 'CHAT_TEST_PDF': str(pdf_path), 'CHAT_TEST_SOURCES': chat_sources, 'CHAT_TEST_OUTPUT_DIR': str(folder),
                  'CHAT_TEST_XPI_HASH': hashlib.sha256(xpi_path.read_bytes()).hexdigest()}
     bootstrap = ''.join('var ' + key + ' = ' + json.dumps(value) + ';\n' for key, value in constants.items())
     bootstrap += Path(__file__).with_name('chat_reader_bootstrap.js').read_text(encoding='utf-8')
@@ -111,6 +116,8 @@ def main():
                 result.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
             else:
                 report = json.loads(result.read_text(encoding='utf-8'))
+            for encoded in folder.glob('native-*.png.b64'):
+                encoded.with_suffix('').write_bytes(base64.b64decode(encoded.read_text(encoding='utf-8')))
             if process.poll() is None:
                 try:
                     process.wait(timeout=2)

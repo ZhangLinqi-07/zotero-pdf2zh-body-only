@@ -61,6 +61,12 @@ def build(source, destination, server_url=None, development=False):
     files['content/scripts/body-only.js'] = (ROOT / 'plugin/body_only_bridge.js').read_bytes()
     files['content/scripts/body-only-note.js'] = (ROOT / 'plugin/reading_note.js').read_bytes()
     files['content/scripts/kinbo-paper-chat.js'] = (ROOT / 'plugin/paper_chat.js').read_bytes()
+    for name in ('reader', 'view'):
+        files[f'content/scripts/kinbo-paper-chat-{name}.js'] = (ROOT / f'plugin/paper_chat_{name}.js').read_bytes()
+    styles = (ROOT / 'plugin/paper_chat.css').read_text(encoding='utf-8')
+    files['content/scripts/kinbo-paper-chat-styles.js'] = ('var KinboChatStyles = ' + json.dumps(styles, ensure_ascii=False) + ';\n').encode('utf-8')
+    for name in ('mark', 'read', 'stop', 'chat', 'settings', 'refresh'):
+        files[f'content/icons/kinbo-{name}.svg'] = (ROOT / f'plugin/icons/kinbo-{name}.svg').read_bytes()
     files['content/scripts/kinbo-updater.js'] = (ROOT / 'plugin/backend_update.js').read_bytes()
     bundle, bundle_info = build_bytes(ROOT)
     files['content/kinbo-backend.b64'] = base64.b64encode(bundle)

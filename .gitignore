@@ -33,3 +33,5 @@ reading.json
 *.xpi
 .kinbo-updates/
 .kinbo-backend.json
+.taste-skill/
+.impeccable/review/

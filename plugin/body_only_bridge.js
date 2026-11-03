@@ -202,6 +202,41 @@ var BodyOnlyBridge = (() => {
     await syncNotes();
     if (active) timer = Zotero.getMainWindow()?.setTimeout(pollNotes, 5000);
   }
+  function menuIcon(node, name) {
+    if (typeof BodyOnlyRootURI !== 'string') return;
+    node.setAttribute('image', BodyOnlyRootURI + 'content/icons/kinbo-' + name + '.svg');
+    node.classList.add(node.localName === 'menu' ? 'menu-iconic' : 'menuitem-iconic');
+    node.style.setProperty('-moz-context-properties', 'fill'); node.style.fill = 'currentColor';
+  }
+  async function readingState(win) {
+    const { item } = await selectedPDF(win), identity = clientID();
+    const response = await Zotero.HTTP.request('GET', baseURL() + '/api/reading/jobs', { responseType: 'json', timeout: 10000 });
+    if (!Array.isArray(response.response?.jobs)) throw new SafeReadingError('无法确认阅读任务状态，请检查 Kinbo 后台后重试');
+    return response.response.jobs.some(job => job.state === 'running' && job.zoteroTarget?.clientID === identity && job.zoteroTarget?.attachmentKey === item.key);
+  }
+  function readingAction(entry, running) {
+    entry.reading.setAttribute('label', running ? '停止阅读' : '深度阅读');
+    menuIcon(entry.reading, running ? 'stop' : 'read');
+  }
+  async function refreshReadingMenu(win, entry) {
+    if (entry.working) return;
+    const revision = entry.revision = (entry.revision || 0) + 1;
+    try {
+      const running = await readingState(win);
+      if (entries.get(win) === entry && revision === entry.revision) readingAction(entry, running);
+    } catch (_) { if (entries.get(win) === entry && revision === entry.revision) readingAction(entry, false); }
+  }
+  async function toggleReading(win, entry) {
+    if (entry.working) return;
+    entry.working = true; entry.revision = (entry.revision || 0) + 1; entry.reading.disabled = true;
+    try {
+      if (await readingState(win)) await stopReading(win); else await openReading(win);
+    } catch (error) {
+      win.alert(error instanceof SafeReadingError ? error.message : '无法确认阅读任务状态，请检查 Kinbo 后台后重试');
+    } finally {
+      if (entries.get(win) === entry) { entry.working = false; entry.reading.disabled = false; refreshReadingMenu(win, entry); }
+    }
+  }
   function addWindow(win) {
     if (entries.has(win)) return;
     const nodes = [];
@@ -209,42 +244,50 @@ var BodyOnlyBridge = (() => {
     const popup = menu?.querySelector('menupopup');
     if (popup) {
       const labels = [menu, ...popup.querySelectorAll('menuitem')].map(node => [node, node.getAttribute('label')]);
+      const menuAttributes = ['image', 'class', 'style'].map(name => [name, menu.getAttribute(name)]);
       menu.setAttribute('label', 'Kinbo');
+      menuIcon(menu, 'mark');
       for (const [node, label] of labels.slice(1)) node.setAttribute('label', (label || '').replace(/^PDF2zh[:：]\s*/, ''));
       win.document.getElementById('pdf2zh-body-only-compare')?.remove();
       const previous = win.document.getElementById('pdf2zh-body-only-reading');
       if (previous && previous.parentNode !== popup) previous.remove();
       const separator = win.document.createXULElement('menuseparator');
       popup.appendChild(separator); nodes.push(separator);
+      const entry = { nodes, labels, menu, menuAttributes, disposers: [], working: false };
+      const command = (node, handler) => {
+        node.addEventListener('command', handler, false, true);
+        entry.disposers.push(() => node.removeEventListener('command', handler));
+      };
       const node = win.document.createXULElement('menuitem');
-      node.id = 'pdf2zh-body-only-reading'; node.setAttribute('label', '深度结构化阅读');
-      node.addEventListener('command', () => openReading(win)); popup.appendChild(node); nodes.push(node);
-      const stop = win.document.createXULElement('menuitem'); stop.id = 'pdf2zh-body-only-stop-reading';
-      stop.setAttribute('label', '停止本篇后续续写'); stop.addEventListener('command', () => stopReading(win));
-      popup.appendChild(stop); nodes.push(stop);
-      const chat = win.document.createXULElement('menuitem'); chat.id = 'pdf2zh-body-only-chat';
-      chat.setAttribute('label', '打开论文对话边栏');
-      chat.addEventListener('command', () => openChat(win)); popup.appendChild(chat); nodes.push(chat);
+      node.id = 'pdf2zh-body-only-reading'; entry.reading = node;
+      readingAction(entry, false); command(node, () => toggleReading(win, entry)); popup.appendChild(node); nodes.push(node);
+      const onShowing = event => { if (event.target === popup) refreshReadingMenu(win, entry); };
+      popup.addEventListener('popupshowing', onShowing, false, true);
+      entry.disposers.push(() => popup.removeEventListener('popupshowing', onShowing));
       const toolsPopup = win.document.getElementById('menu_ToolsPopup');
       if (toolsPopup) {
         const toolsChat = win.document.createXULElement('menuitem'); toolsChat.id = 'kinbo-paper-chat-tools';
         toolsChat.setAttribute('label', 'Kinbo 论文对话边栏');
-        toolsChat.addEventListener('command', () => openChat(win)); toolsPopup.appendChild(toolsChat); nodes.push(toolsChat);
+        menuIcon(toolsChat, 'chat'); command(toolsChat, () => openChat(win)); toolsPopup.appendChild(toolsChat); nodes.push(toolsChat);
+        const model = win.document.createXULElement('menuitem'); model.id = 'pdf2zh-body-only-model';
+        model.setAttribute('label', 'Kinbo 模型后端与 Codex 登录'); menuIcon(model, 'settings');
+        command(model, () => Zotero.launchURL(baseURL() + '/#reading'));
+        toolsPopup.appendChild(model); nodes.push(model);
+        const update = win.document.createXULElement('menuitem'); update.id = 'kinbo-backend-update';
+        update.setAttribute('label', 'Kinbo 后台更新状态与重试'); menuIcon(update, 'refresh');
+        command(update, () => updater?.tick(true)); toolsPopup.appendChild(update); nodes.push(update);
       }
-      const model = win.document.createXULElement('menuitem'); model.id = 'pdf2zh-body-only-model';
-      model.setAttribute('label', '模型后端与 Codex 登录');
-      model.addEventListener('command', () => Zotero.launchURL(baseURL() + '/#reading'));
-      popup.appendChild(model); nodes.push(model);
-      const update = win.document.createXULElement('menuitem'); update.id = 'kinbo-backend-update';
-      update.setAttribute('label', '后台更新状态与重试');
-      update.addEventListener('command', () => updater?.tick(true)); popup.appendChild(update); nodes.push(update);
-      entries.set(win, { nodes, labels });
+      entries.set(win, entry);
     }
   }
   function removeWindow(win) {
     const entry = entries.get(win);
+    for (const dispose of entry?.disposers || []) dispose();
     for (const node of entry?.nodes || []) node.remove();
     for (const [node, label] of entry?.labels || []) node.setAttribute('label', label || '');
+    for (const [name, value] of entry?.menuAttributes || []) {
+      if (value === null) entry.menu.removeAttribute(name); else entry.menu.setAttribute(name, value);
+    }
     entries.delete(win);
   }
   return { addWindow, removeWindow, openReading, syncNotes,
@@ -257,7 +300,9 @@ var BodyOnlyBridge = (() => {
       if (!paperChat && typeof BodyOnlyRootURI === 'string') {
         try {
           const scope = { Zotero, Services };
-          Services.scriptloader.loadSubScript(BodyOnlyRootURI + 'content/scripts/kinbo-paper-chat.js', scope);
+          for (const file of ['kinbo-paper-chat-styles.js', 'kinbo-paper-chat-reader.js', 'kinbo-paper-chat-view.js', 'kinbo-paper-chat.js']) {
+            Services.scriptloader.loadSubScript(BodyOnlyRootURI + 'content/scripts/' + file, scope);
+          }
           paperChat = scope.KinboPaperChat;
           paperChat.start({ baseURL, syncAPI, rootURI: BodyOnlyRootURI });
         } catch (_) { Zotero.logError(new Error('Kinbo paper chat initialization failed')); }

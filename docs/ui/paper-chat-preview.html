@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Kinbo Zotero 论文对话侧栏的独立交互预览，包含主题、模型、选文、引用和任务状态。">
+  <title>Kinbo · 论文对话设计预览</title>
+  <link rel="stylesheet" href="../../plugin/paper_chat.css">
+  <link rel="stylesheet" href="paper-chat-preview.css">
+</head>
+<body>
+  <div class="preview-bar">
+    <strong>Kinbo <span>交互预览</span></strong>
+    <label>状态 <select id="preview-state">
+      <option value="normal">正常对话</option><option value="selection">选文提问</option>
+      <option value="citation">引用定位</option><option value="search">联网搜索</option>
+      <option value="model">模型选择</option><option value="generating">生成中</option>
+      <option value="failed">失败</option><option value="empty">空状态</option>
+    </select></label>
+    <label>主题 <select id="preview-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label>
+    <label><input id="preview-narrow" type="checkbox"> 窄侧栏</label>
+    <button id="preview-open" hidden>打开 Kinbo</button>
+  </div>
+  <p class="preview-notice">合成论文与示例回答 · 不连接后台，不调用模型。右侧为实际插件视图与样式。</p>
+  <main class="preview-workspace" id="workspace">
+    <section class="preview-reader" aria-label="合成 PDF 阅读区域">
+      <div class="preview-reader-toolbar"><span>资料库 / 阅读器</span><span>第 2 / 8 页 · 100%</span></div>
+      <div class="preview-page-scroll">
+        <article class="preview-paper">
+          <h2>Evidence before explanation</h2>
+          <p class="preview-paper-subtitle">A reading workflow for verifiable research conversations</p>
+          <div class="preview-columns">
+            <section><h3>2. Evidence and interpretation</h3>
+              <p>A useful research conversation keeps claims close to their evidence. The reader should be able to return to the exact passage without losing their place in the paper.</p>
+              <p id="evidence">Every generated claim should remain connected to its source passage.</p>
+              <p>The interface distinguishes what the paper says from an interpretation offered by a model. A physical page reference provides a stable path back to the document.</p>
+              <h3>2.1 A bounded reading task</h3>
+              <p>Selection provides context for a question. It does not replace the complete text of the paper. When the document has no text layer, the reader needs OCR before discussing that content.</p>
+            </section>
+            <section><h3>3. Discussion</h3>
+              <p>Conversation belongs beside the document. A compact side pane makes room for explanation while keeping the original argument in view. Controls recede until a decision is necessary.</p>
+              <p>Returning to a citation should not create a permanent annotation. A temporary highlight indicates the evidence and then leaves the paper as it was.</p>
+              <h3>3.1 Limits</h3>
+              <p>This page and all conversations in this preview are synthetic design material. They do not report an experiment, measured model quality, or an actual search run.</p>
+            </section>
+          </div>
+          <footer>合成示例，仅供界面验证 <span>2</span></footer>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script src="../../plugin/paper_chat_view.js"></script>
+  <script src="paper-chat-preview.js"></script>
+</body>
+</html>

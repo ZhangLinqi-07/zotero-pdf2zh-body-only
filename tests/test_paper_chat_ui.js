@@ -31,8 +31,16 @@ class Node {
 
 function fixture({ existingReader = false, lateToolbar = false } = {}) {
   const listeners = {}, calls = [], prefs = {}, timers = new Map(); let timerID = 0;
-  const win = { JSON, setTimeout(fn) { timers.set(++timerID, fn); return timerID; }, clearTimeout(id) { timers.delete(id); }, addEventListener() {}, removeEventListener() {} };
-  const doc = { defaultView: win, createElementNS(ns, tag) { return new Node(doc, tag); }, createTextNode(text) { return new Node(doc, '#text', text); } };
+  const windowListeners = new Map(), mediaListeners = new Set(), observers = new Map();
+  const media = { matches: false, addEventListener: (_, fn) => mediaListeners.add(fn), removeEventListener: (_, fn) => mediaListeners.delete(fn) };
+  const mutations = new Set();
+  const win = { JSON, matchMedia: () => media,
+    MutationObserver: class { constructor(fn) { this.fn = fn; } observe() { mutations.add(this); } disconnect() { mutations.delete(this); } },
+    setTimeout(fn) { timers.set(++timerID, fn); return timerID; }, clearTimeout(id) { timers.delete(id); },
+    addEventListener(name, fn) { if (!windowListeners.has(name)) windowListeners.set(name, new Set()); windowListeners.get(name).add(fn); },
+    removeEventListener(name, fn) { windowListeners.get(name)?.delete(fn); } };
+  const doc = { defaultView: win, createElementNS(ns, tag) { const node = new Node(doc, tag); node.namespaceURI = ns; return node; }, createTextNode(text) { return new Node(doc, '#text', text); } };
+  doc.documentElement = new Node(doc, 'html');
   const host = new Node(doc, 'div'), iframe = new Node(doc, 'iframe'); host.appendChild(iframe);
   const nativeToolbar = new Node(doc, 'div');
   doc.toolbarReady = !lateToolbar;
@@ -48,7 +56,6 @@ function fixture({ existingReader = false, lateToolbar = false } = {}) {
       pdfViewer: { getPageView: () => ({ div: pageDiv, viewport: { convertToViewportRectangle: value => value } }) },
     } } } } };
   const session = { id: 'a'.repeat(32), messages: [], busy: false };
-  const observers = new Map();
   const context = vm.createContext({
     Zotero: {
       Prefs: { get: name => prefs[name], set: (name, value) => { prefs[name] = value; } },
@@ -67,10 +74,11 @@ function fixture({ existingReader = false, lateToolbar = false } = {}) {
       } }, launchURL: url => calls.push({ launched: url }),
     },
   });
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../plugin/paper_chat.js'), 'utf8'), context);
+  context.KinboChatStyles = fs.readFileSync(path.join(__dirname, '../plugin/paper_chat.css'), 'utf8');
+  for (const file of ['paper_chat_reader.js', 'paper_chat_view.js', 'paper_chat.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../plugin/' + file), 'utf8'), context);
   const chat = context.KinboPaperChat;
   chat.start({ baseURL: () => 'http://127.0.0.1:8893', syncAPI: async () => 'openai' });
-  return { chat, context, reader, doc, calls, listeners, host, iframe, timers, prefs, session, pageDiv, nativeToolbar, observers, win };
+  return { chat, context, reader, doc, calls, listeners, host, iframe, timers, prefs, session, pageDiv, nativeToolbar, observers, win, windowListeners, media, mediaListeners, mutations };
 }
 
 (async () => {
@@ -132,12 +140,69 @@ function fixture({ existingReader = false, lateToolbar = false } = {}) {
   panel.network.checked = true; panel.effort.value = 'high'; panel.question.value = 'Search context'; await panel.send.trigger('click');
   assert.equal(f.calls.filter(call => call.url?.endsWith('/messages')).at(-1).data.webSearch, true);
   assert.equal(f.calls.filter(call => call.url?.endsWith('/messages')).at(-1).data.effort, 'high');
-  await panel.cancel.trigger('click'); await panel.clear.trigger('click'); assert.equal(panel.session.messages.length, 0);
+  await panel.cancel.trigger('click'); await panel.clear.trigger('click');
+  assert.equal(f.calls.filter(call => call.url?.endsWith('/clear')).length, 0, 'Clear must require the inline confirmation');
+  assert.equal(panel.clearConfirmation.hidden, false);
+  await panel.cancelClear.trigger('click'); assert.equal(panel.clearConfirmation.hidden, true);
+  await panel.clear.trigger('click'); await panel.confirmClear.trigger('click'); assert.equal(panel.session.messages.length, 0);
   await panel.sideButton.trigger('click'); assert.equal(f.host.children[0], panel.aside);
   const cite = new Node(f.doc, 'a', 'Original'); cite.setAttribute('href', 'kinbo://page/2?quote=FULL%20FINAL%20PAGE'); panel.messages.appendChild(cite);
   await panel.aside.trigger('click', { target: cite });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(f.reader.navigated.position.pageIndex, 1); assert(f.pageDiv.children.length > 0);
+  f.doc.documentElement.setAttribute('data-theme', 'dark');
+  for (const observer of f.mutations) observer.fn();
+  assert.equal(panel.aside.getAttribute('data-theme'), 'dark');
+  f.media.matches = false; for (const fn of f.mediaListeners) fn();
+  assert.equal(panel.aside.getAttribute('data-theme'), 'dark', 'Explicit Zotero theme must outrank the OS theme');
+  panel.question.value = 'composition';
+  await panel.question.trigger('keydown', { key: 'Enter', ctrlKey: true, isComposing: true });
+  assert.equal(panel.question.value, 'composition', 'IME composition must not submit a question');
   f.chat.stop(); assert.equal(f.host.children.length, 1); assert.equal(f.host.children[0], f.iframe); assert.equal(f.pageDiv.children.length, 0); assert.equal(f.timers.size, 0); assert.equal(Object.keys(f.listeners).length, 0);
+  assert.equal(f.mediaListeners.size, 0); assert.equal(f.mutations.size, 0);
+  assert([...f.windowListeners.values()].every(list => list.size === 0));
+  assert(descendants(panel.aside).every(node => Object.values(node.listeners).every(list => list.length === 0)), 'Close must remove every owned DOM listener');
+  assert.equal(panel.aside.listeners.click.length, 0);
+  const reopening = fixture();
+  const first = await reopening.chat.open(reopening.reader);
+  reopening.session.messages = [{ role: 'user', content: 'Retained history' }, { role: 'assistant', content: 'Retained answer [page](kinbo://page/1)' }];
+  await first.closeButton.trigger('click'); const second = await reopening.chat.open(reopening.reader);
+  assert(second.messages.textContent.includes('Retained answer'), 'Reopening must render the existing backend history');
+  assert.equal(first.closed, true); assert.equal(reopening.mutations.size, 1);
+  for (const fn of [...reopening.windowListeners.get('unload')]) fn();
+  assert.equal(second.closed, true); assert.equal(reopening.mutations.size, 0); reopening.chat.stop();
+  const pending = fixture();
+  const originalRequest = pending.context.Zotero.HTTP.request;
+  let releaseConfig;
+  pending.context.Zotero.HTTP.request = (method, url, options) => url.endsWith('/config')
+    ? new Promise(resolve => { releaseConfig = () => originalRequest(method, url, options).then(resolve); }) : originalRequest(method, url, options);
+  const opening = pending.chat.open(pending.reader);
+  await new Promise(resolve => setImmediate(resolve)); pending.chat.stop(); releaseConfig(); await opening;
+  assert.equal(pending.calls.filter(call => call.url?.endsWith('/sessions')).length, 0, 'Late config must not create sessions after shutdown');
+  assert.equal(pending.host.children.length, 1); assert.equal(pending.timers.size, 0);
+  const pendingLogin = fixture(), loginPanel = await pendingLogin.chat.open(pendingLogin.reader);
+  let releaseLogin;
+  pendingLogin.context.Zotero.HTTP.request = () => new Promise(resolve => { releaseLogin = () => resolve({ status: 200, response: { login: { pending: true } } }); });
+  const loggingIn = loginPanel.login.trigger('click'); pendingLogin.chat.stop(); releaseLogin(); await loggingIn;
+  assert.equal(pendingLogin.timers.size, 0, 'Late login must not revive polling after shutdown');
+  const recovery = fixture(), recoveryPanel = await recovery.chat.open(recovery.reader);
+  recovery.session.error = 'Synthetic connection failure'; recovery.session.messages = [{ role: 'assistant', content: 'Preserved partial answer', incomplete: true }];
+  await recoveryPanel.retry.trigger('click');
+  assert.equal(recoveryPanel.retry.hidden, false, 'A failed task must expose recovery in the actual view');
+  const recoveredCalls = recovery.calls.filter(call => call.url?.endsWith('/messages')).length;
+  recovery.context.Zotero.HTTP.request = async () => { throw new Error('Connection still down'); };
+  await recoveryPanel.retry.trigger('click');
+  assert(recoveryPanel.messages.textContent.includes('Preserved partial answer'), 'Reconnect failure must keep the partial answer visible');
+  assert.equal(recovery.calls.filter(call => call.url?.endsWith('/messages')).length, recoveredCalls, 'Reconnect must not generate or bill'); recovery.chat.stop();
+  const dead = fixture({ existingReader: true });
+  const deadButton = dead.nativeToolbar.children[0];
+  Object.defineProperty(deadButton, 'isConnected', { get() { throw new Error("can't access dead object"); } });
+  deadButton.removeEventListener = () => { throw new Error("can't access dead object"); };
+  dead.chat.stop(); assert.equal(dead.observers.size, 0); assert.equal(Object.keys(dead.listeners).length, 0);
+  const delayedReader = fixture();
+  delete delayedReader.reader._internalReader;
+  const waiting = delayedReader.chat.openFromWindow({ Zotero_Tabs: { selectedID: 'loading' }, setTimeout: delayedReader.win.setTimeout, clearTimeout: delayedReader.win.clearTimeout });
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(delayedReader.timers.size, 1);
+  delayedReader.chat.stop(); await waiting; assert.equal(delayedReader.timers.size, 0, 'Shutdown must release Reader readiness timers');
   console.log('Paper chat mocked-reader checks passed: full text, selection, API/Codex, safe citations, highlights, persistence and cleanup');
 })().catch(error => { console.error(error); process.exit(1); });

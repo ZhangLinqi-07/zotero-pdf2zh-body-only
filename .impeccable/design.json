@@ -1,0 +1,597 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-03T07:59:07+00:00",
+  "title": "Design System: Kinbo",
+  "extensions": {
+    "colorMeta": {
+      "light-bg": {
+        "role": "neutral",
+        "displayName": "浅色 · 面板底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.00073 247.84)",
+          "oklch(26.0% 0.00127 247.84)",
+          "oklch(38.0% 0.00171 247.84)",
+          "oklch(49.0% 0.00171 247.84)",
+          "oklch(61.0% 0.00171 247.84)",
+          "oklch(72.0% 0.00171 247.84)",
+          "oklch(84.0% 0.00137 247.84)",
+          "oklch(95.0% 0.00043 247.84)"
+        ]
+      },
+      "light-surface": {
+        "role": "neutral",
+        "displayName": "浅色 · 连续阅读面",
+        "tonalRamp": [
+          "oklch(15.0% 0.0 0)",
+          "oklch(26.0% 0.0 0)",
+          "oklch(38.0% 0.0 0)",
+          "oklch(49.0% 0.0 0)",
+          "oklch(61.0% 0.0 0)",
+          "oklch(72.0% 0.0 0)",
+          "oklch(84.0% 0.0 0)",
+          "oklch(95.0% 0.0 0)"
+        ]
+      },
+      "light-hover": {
+        "role": "neutral",
+        "displayName": "浅色 · 悬停底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.00222 247.88)",
+          "oklch(26.0% 0.00385 247.88)",
+          "oklch(38.0% 0.00518 247.88)",
+          "oklch(49.0% 0.00518 247.88)",
+          "oklch(61.0% 0.00518 247.88)",
+          "oklch(72.0% 0.00518 247.88)",
+          "oklch(84.0% 0.00414 247.88)",
+          "oklch(95.0% 0.00129 247.88)"
+        ]
+      },
+      "light-ink": {
+        "role": "neutral",
+        "displayName": "浅色 · 正文",
+        "tonalRamp": [
+          "oklch(15.0% 0.00503 248.26)",
+          "oklch(26.0% 0.00871 248.26)",
+          "oklch(38.0% 0.01173 248.26)",
+          "oklch(49.0% 0.01173 248.26)",
+          "oklch(61.0% 0.01173 248.26)",
+          "oklch(72.0% 0.01173 248.26)",
+          "oklch(84.0% 0.00938 248.26)",
+          "oklch(95.0% 0.00293 248.26)"
+        ]
+      },
+      "light-muted": {
+        "role": "neutral",
+        "displayName": "浅色 · 辅助文字",
+        "tonalRamp": [
+          "oklch(15.0% 0.0074 251.29)",
+          "oklch(26.0% 0.01283 251.29)",
+          "oklch(38.0% 0.01727 251.29)",
+          "oklch(49.0% 0.01727 251.29)",
+          "oklch(61.0% 0.01727 251.29)",
+          "oklch(72.0% 0.01727 251.29)",
+          "oklch(84.0% 0.01382 251.29)",
+          "oklch(95.0% 0.00432 251.29)"
+        ]
+      },
+      "light-line": {
+        "role": "neutral",
+        "displayName": "浅色 · 分界线",
+        "tonalRamp": [
+          "oklch(15.0% 0.00348 253.86)",
+          "oklch(26.0% 0.00604 253.86)",
+          "oklch(38.0% 0.00813 253.86)",
+          "oklch(49.0% 0.00813 253.86)",
+          "oklch(61.0% 0.00813 253.86)",
+          "oklch(72.0% 0.00813 253.86)",
+          "oklch(84.0% 0.0065 253.86)",
+          "oklch(95.0% 0.00203 253.86)"
+        ]
+      },
+      "light-control": {
+        "role": "neutral",
+        "displayName": "浅色 · 控件边缘",
+        "tonalRamp": [
+          "oklch(15.0% 0.00777 250.92)",
+          "oklch(26.0% 0.01346 250.92)",
+          "oklch(38.0% 0.01812 250.92)",
+          "oklch(49.0% 0.01812 250.92)",
+          "oklch(61.0% 0.01812 250.92)",
+          "oklch(72.0% 0.01812 250.92)",
+          "oklch(84.0% 0.01449 250.92)",
+          "oklch(95.0% 0.00453 250.92)"
+        ]
+      },
+      "light-accent": {
+        "role": "primary",
+        "displayName": "浅色 · 证据青蓝",
+        "tonalRamp": [
+          "oklch(15.0% 0.02839 223.3)",
+          "oklch(26.0% 0.04921 223.3)",
+          "oklch(38.0% 0.06624 223.3)",
+          "oklch(49.0% 0.06624 223.3)",
+          "oklch(61.0% 0.06624 223.3)",
+          "oklch(72.0% 0.06624 223.3)",
+          "oklch(84.0% 0.05299 223.3)",
+          "oklch(95.0% 0.01656 223.3)"
+        ]
+      },
+      "light-selected": {
+        "role": "neutral",
+        "displayName": "浅色 · 选文底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.00298 219.56)",
+          "oklch(26.0% 0.00516 219.56)",
+          "oklch(38.0% 0.00695 219.56)",
+          "oklch(49.0% 0.00695 219.56)",
+          "oklch(61.0% 0.00695 219.56)",
+          "oklch(72.0% 0.00695 219.56)",
+          "oklch(84.0% 0.00556 219.56)",
+          "oklch(95.0% 0.00174 219.56)"
+        ]
+      },
+      "light-focus": {
+        "role": "primary",
+        "displayName": "浅色 · 键盘焦点",
+        "tonalRamp": [
+          "oklch(15.0% 0.03083 221.9)",
+          "oklch(26.0% 0.05344 221.9)",
+          "oklch(38.0% 0.07194 221.9)",
+          "oklch(49.0% 0.07194 221.9)",
+          "oklch(61.0% 0.07194 221.9)",
+          "oklch(72.0% 0.07194 221.9)",
+          "oklch(84.0% 0.05755 221.9)",
+          "oklch(95.0% 0.01799 221.9)"
+        ]
+      },
+      "light-primary": {
+        "role": "primary",
+        "displayName": "浅色 · 发送主动作",
+        "tonalRamp": [
+          "oklch(15.0% 0.00892 239.93)",
+          "oklch(26.0% 0.01547 239.93)",
+          "oklch(38.0% 0.02082 239.93)",
+          "oklch(49.0% 0.02082 239.93)",
+          "oklch(61.0% 0.02082 239.93)",
+          "oklch(72.0% 0.02082 239.93)",
+          "oklch(84.0% 0.01666 239.93)",
+          "oklch(95.0% 0.00521 239.93)"
+        ]
+      },
+      "light-on-primary": {
+        "role": "primary",
+        "displayName": "浅色 · 主动作文字",
+        "tonalRamp": [
+          "oklch(15.0% 0.0 0)",
+          "oklch(26.0% 0.0 0)",
+          "oklch(38.0% 0.0 0)",
+          "oklch(49.0% 0.0 0)",
+          "oklch(61.0% 0.0 0)",
+          "oklch(72.0% 0.0 0)",
+          "oklch(84.0% 0.0 0)",
+          "oklch(95.0% 0.0 0)"
+        ]
+      },
+      "light-danger": {
+        "displayName": "浅色 · 失败文字",
+        "tonalRamp": [
+          "oklch(15.0% 0.06395 20.01)",
+          "oklch(26.0% 0.11084 20.01)",
+          "oklch(38.0% 0.14921 20.01)",
+          "oklch(49.0% 0.14921 20.01)",
+          "oklch(61.0% 0.14921 20.01)",
+          "oklch(72.0% 0.14921 20.01)",
+          "oklch(84.0% 0.11937 20.01)",
+          "oklch(95.0% 0.0373 20.01)"
+        ]
+      },
+      "light-error-bg": {
+        "displayName": "浅色 · 失败底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.00649 17.42)",
+          "oklch(26.0% 0.01124 17.42)",
+          "oklch(38.0% 0.01514 17.42)",
+          "oklch(49.0% 0.01514 17.42)",
+          "oklch(61.0% 0.01514 17.42)",
+          "oklch(72.0% 0.01514 17.42)",
+          "oklch(84.0% 0.01211 17.42)",
+          "oklch(95.0% 0.00378 17.42)"
+        ]
+      },
+      "dark-bg": {
+        "role": "neutral",
+        "displayName": "深色 · 面板底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.00375 255.59)",
+          "oklch(26.0% 0.00649 255.59)",
+          "oklch(38.0% 0.00874 255.59)",
+          "oklch(49.0% 0.00874 255.59)",
+          "oklch(61.0% 0.00874 255.59)",
+          "oklch(72.0% 0.00874 255.59)",
+          "oklch(84.0% 0.00699 255.59)",
+          "oklch(95.0% 0.00218 255.59)"
+        ]
+      },
+      "dark-surface": {
+        "role": "neutral",
+        "displayName": "深色 · 连续阅读面",
+        "tonalRamp": [
+          "oklch(15.0% 0.00464 254.01)",
+          "oklch(26.0% 0.00804 254.01)",
+          "oklch(38.0% 0.01083 254.01)",
+          "oklch(49.0% 0.01083 254.01)",
+          "oklch(61.0% 0.01083 254.01)",
+          "oklch(72.0% 0.01083 254.01)",
+          "oklch(84.0% 0.00866 254.01)",
+          "oklch(95.0% 0.00271 254.01)"
+        ]
+      },
+      "dark-hover": {
+        "role": "neutral",
+        "displayName": "深色 · 悬停底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.00663 248.27)",
+          "oklch(26.0% 0.01149 248.27)",
+          "oklch(38.0% 0.01546 248.27)",
+          "oklch(49.0% 0.01546 248.27)",
+          "oklch(61.0% 0.01546 248.27)",
+          "oklch(72.0% 0.01546 248.27)",
+          "oklch(84.0% 0.01237 248.27)",
+          "oklch(95.0% 0.00387 248.27)"
+        ]
+      },
+      "dark-ink": {
+        "role": "neutral",
+        "displayName": "深色 · 正文",
+        "tonalRamp": [
+          "oklch(15.0% 0.00297 247.9)",
+          "oklch(26.0% 0.00514 247.9)",
+          "oklch(38.0% 0.00692 247.9)",
+          "oklch(49.0% 0.00692 247.9)",
+          "oklch(61.0% 0.00692 247.9)",
+          "oklch(72.0% 0.00692 247.9)",
+          "oklch(84.0% 0.00554 247.9)",
+          "oklch(95.0% 0.00173 247.9)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "深色 · 辅助文字",
+        "tonalRamp": [
+          "oklch(15.0% 0.00669 251.19)",
+          "oklch(26.0% 0.0116 251.19)",
+          "oklch(38.0% 0.01561 251.19)",
+          "oklch(49.0% 0.01561 251.19)",
+          "oklch(61.0% 0.01561 251.19)",
+          "oklch(72.0% 0.01561 251.19)",
+          "oklch(84.0% 0.01249 251.19)",
+          "oklch(95.0% 0.0039 251.19)"
+        ]
+      },
+      "dark-line": {
+        "role": "neutral",
+        "displayName": "深色 · 分界线",
+        "tonalRamp": [
+          "oklch(15.0% 0.0073 248.25)",
+          "oklch(26.0% 0.01265 248.25)",
+          "oklch(38.0% 0.01702 248.25)",
+          "oklch(49.0% 0.01702 248.25)",
+          "oklch(61.0% 0.01702 248.25)",
+          "oklch(72.0% 0.01702 248.25)",
+          "oklch(84.0% 0.01362 248.25)",
+          "oklch(95.0% 0.00426 248.25)"
+        ]
+      },
+      "dark-control": {
+        "role": "neutral",
+        "displayName": "深色 · 控件边缘",
+        "tonalRamp": [
+          "oklch(15.0% 0.00943 241.01)",
+          "oklch(26.0% 0.01634 241.01)",
+          "oklch(38.0% 0.02199 241.01)",
+          "oklch(49.0% 0.02199 241.01)",
+          "oklch(61.0% 0.02199 241.01)",
+          "oklch(72.0% 0.02199 241.01)",
+          "oklch(84.0% 0.0176 241.01)",
+          "oklch(95.0% 0.0055 241.01)"
+        ]
+      },
+      "dark-accent": {
+        "role": "primary",
+        "displayName": "深色 · 证据青蓝",
+        "tonalRamp": [
+          "oklch(15.0% 0.02542 224.53)",
+          "oklch(26.0% 0.04406 224.53)",
+          "oklch(38.0% 0.05931 224.53)",
+          "oklch(49.0% 0.05931 224.53)",
+          "oklch(61.0% 0.05931 224.53)",
+          "oklch(72.0% 0.05931 224.53)",
+          "oklch(84.0% 0.04745 224.53)",
+          "oklch(95.0% 0.01483 224.53)"
+        ]
+      },
+      "dark-selected": {
+        "role": "neutral",
+        "displayName": "深色 · 选文底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.01403 231.73)",
+          "oklch(26.0% 0.02432 231.73)",
+          "oklch(38.0% 0.03274 231.73)",
+          "oklch(49.0% 0.03274 231.73)",
+          "oklch(61.0% 0.03274 231.73)",
+          "oklch(72.0% 0.03274 231.73)",
+          "oklch(84.0% 0.02619 231.73)",
+          "oklch(95.0% 0.00818 231.73)"
+        ]
+      },
+      "dark-focus": {
+        "role": "primary",
+        "displayName": "深色 · 键盘焦点",
+        "tonalRamp": [
+          "oklch(15.0% 0.02434 222.45)",
+          "oklch(26.0% 0.04218 222.45)",
+          "oklch(38.0% 0.05679 222.45)",
+          "oklch(49.0% 0.05679 222.45)",
+          "oklch(61.0% 0.05679 222.45)",
+          "oklch(72.0% 0.05679 222.45)",
+          "oklch(84.0% 0.04543 222.45)",
+          "oklch(95.0% 0.0142 222.45)"
+        ]
+      },
+      "dark-primary": {
+        "role": "primary",
+        "displayName": "深色 · 发送主动作",
+        "tonalRamp": [
+          "oklch(15.0% 0.00544 236.64)",
+          "oklch(26.0% 0.00942 236.64)",
+          "oklch(38.0% 0.01268 236.64)",
+          "oklch(49.0% 0.01268 236.64)",
+          "oklch(61.0% 0.01268 236.64)",
+          "oklch(72.0% 0.01268 236.64)",
+          "oklch(84.0% 0.01015 236.64)",
+          "oklch(95.0% 0.00317 236.64)"
+        ]
+      },
+      "dark-on-primary": {
+        "role": "primary",
+        "displayName": "深色 · 主动作文字",
+        "tonalRamp": [
+          "oklch(15.0% 0.00682 240.61)",
+          "oklch(26.0% 0.01182 240.61)",
+          "oklch(38.0% 0.01591 240.61)",
+          "oklch(49.0% 0.01591 240.61)",
+          "oklch(61.0% 0.01591 240.61)",
+          "oklch(72.0% 0.01591 240.61)",
+          "oklch(84.0% 0.01273 240.61)",
+          "oklch(95.0% 0.00398 240.61)"
+        ]
+      },
+      "dark-danger": {
+        "displayName": "深色 · 失败文字",
+        "tonalRamp": [
+          "oklch(15.0% 0.03978 14.26)",
+          "oklch(26.0% 0.06896 14.26)",
+          "oklch(38.0% 0.09282 14.26)",
+          "oklch(49.0% 0.09282 14.26)",
+          "oklch(61.0% 0.09282 14.26)",
+          "oklch(72.0% 0.09282 14.26)",
+          "oklch(84.0% 0.07426 14.26)",
+          "oklch(95.0% 0.02321 14.26)"
+        ]
+      },
+      "dark-error-bg": {
+        "displayName": "深色 · 失败底色",
+        "tonalRamp": [
+          "oklch(15.0% 0.01287 358.41)",
+          "oklch(26.0% 0.0223 358.41)",
+          "oklch(38.0% 0.03002 358.41)",
+          "oklch(49.0% 0.03002 358.41)",
+          "oklch(61.0% 0.03002 358.41)",
+          "oklch(72.0% 0.03002 358.41)",
+          "oklch(84.0% 0.02402 358.41)",
+          "oklch(95.0% 0.00751 358.41)"
+        ]
+      },
+      "evidence-highlight": {
+        "displayName": "PDF 临时定位",
+        "tonalRamp": [
+          "oklch(15.0% 0.06857 86.67)",
+          "oklch(26.0% 0.11886 86.67)",
+          "oklch(38.0% 0.16 86.67)",
+          "oklch(49.0% 0.16 86.67)",
+          "oklch(61.0% 0.16 86.67)",
+          "oklch(72.0% 0.16 86.67)",
+          "oklch(84.0% 0.128 86.67)",
+          "oklch(95.0% 0.04 86.67)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Kinbo 字标",
+        "purpose": "仅用于侧栏首行品牌。"
+      },
+      "body": {
+        "displayName": "界面与正文",
+        "purpose": "按钮、问题框与消息正文。"
+      },
+      "label": {
+        "displayName": "辅助说明",
+        "purpose": "角色、页码、字段标签、状态。"
+      },
+      "message-heading": {
+        "displayName": "回答内标题",
+        "purpose": "消息内的小标题。"
+      },
+      "empty-title": {
+        "displayName": "空状态标题",
+        "purpose": "从一个问题开始。"
+      },
+      "code": {
+        "displayName": "代码",
+        "purpose": "只用于 pre/code，不作为装饰标签。"
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "button-color-feedback",
+        "value": "background-color 150ms ease, color 150ms ease",
+        "purpose": "仅按钮背景和文字状态反馈；reduced-motion 下关闭。"
+      },
+      {
+        "name": "quote-highlight-lifetime",
+        "value": "5000ms",
+        "purpose": "PDF 唯一匹配原句的临时定位，不是动画。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sidebar-compact-container",
+        "value": "300px",
+        "purpose": "侧栏 inline-size container query，压缩内距与动作间距，隐藏副标和快捷键说明。"
+      }
+    ],
+    "focus": {
+      "value": "2px solid var(--kinbo-focus); outline-offset: 2px",
+      "purpose": "按钮、字段、summary 与链接统一的键盘焦点。"
+    },
+    "provenance": {
+      "mode": "scan",
+      "sources": [
+        "plugin/paper_chat.css",
+        "plugin/paper_chat_view.js",
+        "plugin/paper_chat.js",
+        "plugin/paper_chat_reader.js",
+        "plugin/body_only_bridge.js",
+        "plugin/icons/*.svg"
+      ],
+      "scope": "本轮论文对话侧栏与原生菜单收敛；后台控制页与其他上游界面未迁移。",
+      "tonalRampPurpose": "按 document 规范合成的面板展示色阶，不是实装新增 token。",
+      "validation": "依据正式样式和抽样组件/控制器源码提取；独立 finish review 的两项 material 修复复核通过，只覆盖该两项。",
+      "conceptSeed": "本轮未运行；使用已确认的证据伴读方向。"
+    }
+  },
+  "components": [
+    {
+      "name": "发送",
+      "kind": "button",
+      "refersTo": "button-send",
+      "description": "唯一填充主动作；示例同时呈现浅深色，生成时由停止动作替代。",
+      "html": "<button class=\"ds-send\">发送</button> <button class=\"ds-send\" data-theme=\"dark\">发送</button>",
+      "css": ".ds-send{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);min-height:32px;border:1px solid transparent;border-radius:var(--kinbo-light-radius,6px);padding:4px 8px;cursor:pointer;transition:background-color var(--kinbo-light-duration,150ms),color var(--kinbo-light-duration,150ms);padding-inline:12px;background:var(--kinbo-light-primary, #263139);color:var(--kinbo-light-on-primary, #ffffff)}.ds-send:hover:not(:disabled){background:var(--kinbo-light-ink, #23282d);color:var(--kinbo-light-surface, #ffffff)}.ds-send:active:not(:hover):not(:disabled){background:var(--kinbo-light-hover, #e9ecef)}.ds-send:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}.ds-send:disabled{background:var(--kinbo-light-hover, #e9ecef);color:var(--kinbo-light-muted, #626a73);cursor:default}.ds-send[data-theme=\"dark\"]{background:var(--kinbo-dark-primary, #dce5eb);color:var(--kinbo-dark-on-primary, #20282e)}.ds-send[data-theme=\"dark\"]:hover:not(:disabled){background:var(--kinbo-dark-ink, #e5e9ed);color:var(--kinbo-dark-surface, #262a2f)}.ds-send[data-theme=\"dark\"]:active:not(:hover):not(:disabled){background:var(--kinbo-dark-hover, #343b42)}.ds-send[data-theme=\"dark\"]:focus-visible{outline-color:var(--kinbo-dark-focus, #a1d2e4)}.ds-send[data-theme=\"dark\"]:disabled{background:var(--kinbo-dark-hover, #343b42);color:var(--kinbo-dark-muted, #b0b8c1)}@media(prefers-reduced-motion:reduce){.ds-send{transition:none}}@media(pointer:coarse){.ds-send{min-height:44px}}"
+    },
+    {
+      "name": "中性操作",
+      "kind": "button",
+      "refersTo": "button-neutral",
+      "description": "停止、取消、连接等非填充操作。",
+      "html": "<button class=\"ds-neutral\">停止生成</button>",
+      "css": ".ds-neutral{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);min-height:32px;border:1px solid transparent;border-radius:var(--kinbo-light-radius,6px);padding:4px 8px;cursor:pointer;transition:background-color var(--kinbo-light-duration,150ms),color var(--kinbo-light-duration,150ms);background:transparent;color:var(--kinbo-light-ink, #23282d)}.ds-neutral:hover:not(:disabled),.ds-neutral:active:not(:disabled){background:var(--kinbo-light-hover, #e9ecef)}.ds-neutral:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}.ds-neutral:disabled{color:var(--kinbo-light-muted, #626a73);cursor:default}@media(prefers-reduced-motion:reduce){.ds-neutral{transition:none}}@media(pointer:coarse){.ds-neutral{min-height:44px}}"
+    },
+    {
+      "name": "图标工具",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "具有名称的单色线性按钮；示例为关闭侧栏。",
+      "html": "<button class=\"ds-icon\" aria-label=\"关闭论文对话\" title=\"关闭论文对话\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m6 6 12 12M18 6 6 18\"/></svg></button>",
+      "css": ".ds-icon{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);min-height:32px;border:1px solid transparent;border-radius:var(--kinbo-light-radius,6px);padding:4px 8px;cursor:pointer;transition:background-color var(--kinbo-light-duration,150ms),color var(--kinbo-light-duration,150ms);width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:transparent;color:var(--kinbo-light-ink, #23282d)}.ds-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.ds-icon:hover:not(:disabled),.ds-icon:active:not(:disabled){background:var(--kinbo-light-hover, #e9ecef)}.ds-icon:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}.ds-icon:disabled{color:var(--kinbo-light-muted, #626a73);cursor:default}@media(prefers-reduced-motion:reduce){.ds-icon{transition:none}}@media(pointer:coarse){.ds-icon{width:44px;min-height:44px}}"
+    },
+    {
+      "name": "起始问题",
+      "kind": "button",
+      "refersTo": "button-starter",
+      "description": "空状态中的唯一建议动作，只填入问题框。",
+      "html": "<button class=\"ds-starter\">这篇论文的核心贡献是什么？</button>",
+      "css": ".ds-starter{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);min-height:32px;border:1px solid transparent;border-radius:var(--kinbo-light-radius,6px);padding:4px 8px;cursor:pointer;transition:background-color var(--kinbo-light-duration,150ms),color var(--kinbo-light-duration,150ms);width:100%;text-align:start;background:transparent;color:var(--kinbo-light-ink, #23282d);border-color:var(--kinbo-light-control, #8c959f)}.ds-starter:hover:not(:disabled),.ds-starter:active:not(:disabled){background:var(--kinbo-light-hover, #e9ecef)}.ds-starter:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}.ds-starter:disabled{color:var(--kinbo-light-muted, #626a73);cursor:default}@media(prefers-reduced-motion:reduce){.ds-starter{transition:none}}"
+    },
+    {
+      "name": "问题字段",
+      "kind": "input",
+      "refersTo": "input-question",
+      "description": "始终保留可见标签，文本框可垂直调整。",
+      "html": "<label class=\"ds-question-label\" for=\"ds-question\">论文问题</label><textarea id=\"ds-question\" class=\"ds-question\" placeholder=\"向这篇论文提问…\"></textarea>",
+      "css": ".ds-question-label{display:block;font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);font-size:12px;margin-bottom:4px;color:var(--kinbo-light-ink, #23282d)}.ds-question{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);display:block;width:100%;min-width:0;min-height:72px;max-height:200px;padding:4px 8px;resize:vertical;border:1px solid var(--kinbo-light-control, #8c959f);border-radius:var(--kinbo-light-input-radius,8px);background:var(--kinbo-light-surface, #ffffff);color:var(--kinbo-light-ink, #23282d);caret-color:var(--kinbo-light-accent, #245d70)}.ds-question::placeholder{color:var(--kinbo-light-muted, #626a73);opacity:1}.ds-question:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}"
+    },
+    {
+      "name": "物理页码引用",
+      "kind": "custom",
+      "refersTo": "link-evidence",
+      "description": "使用证据色和下划线，指向原文页码。",
+      "html": "<a class=\"ds-evidence\" href=\"kinbo://page/3\">第 3 页原文</a>",
+      "css": ".ds-evidence{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);font-size:12px;color:var(--kinbo-light-accent, #245d70);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere;white-space:normal;cursor:pointer}.ds-evidence:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}"
+    },
+    {
+      "name": "选文上下文",
+      "kind": "custom",
+      "refersTo": "selection",
+      "description": "完整原句、物理页码和可访问的移除动作。",
+      "html": "<div class=\"ds-selection\"><div class=\"ds-selection-heading\"><b>第 3 页选文</b><button class=\"ds-remove\" aria-label=\"移除选文\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m6 6 12 12M18 6 6 18\"/></svg></button></div><p>这是一句用于展示选文上下文的合成原文。</p></div>",
+      "css": ".ds-selection{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);font-size:12px;padding:8px;border:1px solid var(--kinbo-light-control, #8c959f);border-radius:var(--kinbo-light-radius,6px);background:var(--kinbo-light-selected, #edf3f5);color:var(--kinbo-light-ink, #23282d)}.ds-selection-heading{display:flex;align-items:center;gap:4px}.ds-selection-heading b{flex:1;font-weight:500}.ds-selection p{max-height:88px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 0}.ds-remove{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);min-height:32px;border:1px solid transparent;border-radius:var(--kinbo-light-radius,6px);padding:4px 8px;cursor:pointer;transition:background-color var(--kinbo-light-duration,150ms),color var(--kinbo-light-duration,150ms);width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:transparent;color:inherit}.ds-remove svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.ds-remove:hover,.ds-remove:active{background:var(--kinbo-light-hover, #e9ecef)}.ds-remove:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}@media(prefers-reduced-motion:reduce){.ds-remove{transition:none}}"
+    },
+    {
+      "name": "折叠模型设置",
+      "kind": "custom",
+      "refersTo": "disclosure-settings",
+      "description": "原生 details 渐进披露，摘要显示当前模型。",
+      "html": "<details class=\"ds-settings\"><summary>模型与设置 · 已有翻译 API</summary><p>PDF 文字会随提问交给所选服务。</p></details>",
+      "css": ".ds-settings{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);margin-top:8px;color:var(--kinbo-light-ink, #23282d)}.ds-settings summary{min-height:32px;padding-block:4px;cursor:pointer;color:var(--kinbo-light-muted, #626a73);overflow-wrap:anywhere}.ds-settings summary:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}.ds-settings p{font-size:12px;color:var(--kinbo-light-muted, #626a73);margin:12px 0 0}@media(pointer:coarse){.ds-settings summary{min-height:44px}}"
+    },
+    {
+      "name": "连续消息",
+      "kind": "custom",
+      "refersTo": "message",
+      "description": "角色和正文直接落在阅读面，分隔相邻消息。",
+      "html": "<article class=\"ds-message\"><b class=\"ds-role\">Kinbo</b><p>这是用于展示连续阅读排版的合成回答。</p><a class=\"ds-message-link\" href=\"kinbo://page/3\">第 3 页原文</a></article>",
+      "css": ".ds-message{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);padding:16px 0;background:var(--kinbo-light-surface, #ffffff);color:var(--kinbo-light-ink, #23282d);overflow-wrap:anywhere}.ds-message+.ds-message{border-top:1px solid var(--kinbo-light-line, #d5d9de)}.ds-role{display:block;font-size:12px;font-weight:500;color:var(--kinbo-light-muted, #626a73);margin-bottom:8px}.ds-message p{margin:8px 0;white-space:pre-wrap}.ds-message-link{font-size:12px;color:var(--kinbo-light-accent, #245d70);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}.ds-message-link:focus-visible{outline:2px solid var(--kinbo-light-focus, #246579);outline-offset:2px;}"
+    },
+    {
+      "name": "未完成反馈",
+      "kind": "custom",
+      "refersTo": "message-error",
+      "description": "错误与已有回答同存，文字明确已有内容保留。",
+      "html": "<p class=\"ds-error\">回答尚未完成，已有内容已保留</p>",
+      "css": ".ds-error{font:13px/1.65 var(--kinbo-light-font,\"Aptos\",\"Segoe UI Variable Text\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif);padding:8px;color:var(--kinbo-light-danger, #a12f39);background:var(--kinbo-light-error-bg, #fff1f1);border-radius:var(--kinbo-light-radius,6px);overflow-wrap:anywhere}"
+    }
+  ],
+  "narrative": {
+    "northStar": "证据伴读",
+    "overview": "Kinbo 是沿论文页边展开的阅读工具。视觉语言专业、精致、克制，以石墨色界面、连续阅读面、清楚的分界和可返回原文的物理页码建立秩序。PDF 保持主工作面，品牌标记提供身份，颜色服务证据与状态。\n\n本文件从本轮论文对话侧栏与菜单收敛的最终源码提取，适用于 Zotero 桌面 XHTML/Gecko 环境。后台 Web 控制页保留原设计；上游首选项、API 编辑器、翻译菜单及插件管理器身份仍有独立迁移任务。不得据此宣称全产品已完成 UI 迁移。\n\n方向沿用用户确认的「证据伴读」。Taste app-screen 记录为 Achromatic ledger（seed 264691230），Hallmark 按 Custom app 审查，Impeccable 按 Operate code-first 实施。未运行 concept-seed；方向依据与第一屏策略保存在 docs/ui/paper-chat-brief.md。",
+    "keyCharacteristics": [
+      "连续阅读面与细线分区，避免聊天气泡墙。",
+      "本地字体、紧凑控件和明确的键盘焦点。",
+      "浅深色语义一致，证据、失败与忙碌都有文字说明。",
+      "响应侧栏自身宽度，保持 PDF 与发送操作可达。"
+    ],
+    "rules": [
+      {
+        "name": "The Evidence Color Rule",
+        "body": "证据链接、选文与键盘焦点使用对应语义颜色；失败有独立文字和底色，不以颜色单独传达状态。",
+        "section": "colors"
+      },
+      {
+        "name": "The One Brand Rule",
+        "body": "Kinbo 字标只占侧栏首行；正文角色名负责辨认回答者，不再重复堆叠品牌标题。",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Reading Rule",
+        "body": "阅读面以底色和细线区分，不使用阴影、装饰渐变或浮动贴片制造层级。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 复用已提取的浅深色语义配对；新增表面先核对既有源码与本文件。",
+      "Do 保留清楚的角色、物理页码、字段标签与独立状态反馈。",
+      "Do 在窄侧栏、低高度、键盘操作和深色模式下核对发送、停止与取消是否可达。",
+      "Do 用自然中文直接命名动作，错误说明恢复路径与已有内容是否保留。"
+    ],
+    "donts": [
+      "Don't 把后续首选项、API 编辑器、翻译与品牌资源迁移描述为本阶段已交付。",
+      "Don't 引入营销式大标题、聊天气泡墙、装饰性等宽标签或密集大写。",
+      "Don't 添加阴影、装饰渐变、入场、悬浮、呼吸或大范围动画。",
+      "Don't 以视觉工作改变完整输入、后台 API、数据格式、插件 ID、版本或更新通道；后台控制页不在本轮范围内。",
+      "Don't 将合成预览、模拟接口或局部 finish 复核写成真实模型质量与全产品验收。"
+    ]
+  }
+}
