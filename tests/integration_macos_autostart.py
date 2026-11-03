@@ -52,14 +52,17 @@ http.server.HTTPServer(('127.0.0.1', args.port), Handler).serve_forever()
             if result['state'] != 'enabled':
                 raise AssertionError(result['message'])
             deadline = time.monotonic() + 20
+            local = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             while True:
                 try:
-                    with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/capabilities', timeout=1) as response:
+                    with local.open(f'http://127.0.0.1:{port}/api/capabilities', timeout=1) as response:
                         assert json.load(response)['pdfReading']
                     break
                 except OSError:
                     if time.monotonic() > deadline:
-                        raise AssertionError('Real launchd did not start the disposable backend')
+                        logs = '\n'.join(log.read_text(errors='replace')[-2500:] for log in (root / 'body-only-logs').glob('*.log'))
+                        state = subprocess.run(['/bin/launchctl', 'print', service], capture_output=True, text=True).stdout
+                        raise AssertionError('Real launchd backend did not become reachable\n' + logs + '\n' + state[-4000:])
                     time.sleep(.2)
             pidfile = root / f'body-only-logs/server-{port}.pid'
             pid = int(pidfile.read_text())

@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import run_body_only
 
@@ -22,7 +22,7 @@ class LauncherTests(unittest.TestCase):
             responses = [io.BytesIO(json.dumps(value).encode()) for value in
                          [{'status': 'success'}, {'pdfReading': True, 'version': '0.4.4'}]]
             with patch.object(sys, 'argv', ['run_body_only.py', '--server-dir', directory, '--port', '8892']), \
-                 patch.object(run_body_only.urllib.request, 'urlopen', side_effect=responses), \
+                 patch.object(run_body_only.urllib.request, 'build_opener', return_value=Mock(open=Mock(side_effect=responses))), \
                  patch.object(run_body_only.subprocess, 'Popen') as launch:
                 run_body_only.main()
             launch.assert_not_called()

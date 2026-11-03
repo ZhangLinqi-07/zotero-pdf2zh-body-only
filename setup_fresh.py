@@ -215,9 +215,10 @@ def main():
                 if startup['state'] != 'enabled':
                     raise ValueError(startup['message'])
                 print('正在等待 Kinbo 后台就绪…', flush=True)
+                local = urllib.request.build_opener(urllib.request.ProxyHandler({}))
                 for _ in range(30):
                     try:
-                        with urllib.request.urlopen(f'http://127.0.0.1:{args.port}/api/capabilities', timeout=1) as response:
+                        with local.open(f'http://127.0.0.1:{args.port}/api/capabilities', timeout=1) as response:
                             if json.load(response).get('pdfReading'):
                                 break
                     except (OSError, ValueError):

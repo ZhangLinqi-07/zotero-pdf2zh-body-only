@@ -49,10 +49,11 @@ def main():
         lock.close()
         return
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/api/section-settings", timeout=2) as response:
+        local = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with local.open(f"http://127.0.0.1:{args.port}/api/section-settings", timeout=2) as response:
             if json.load(response).get("status") == "success":
                 try:
-                    with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/api/capabilities", timeout=2) as check:
+                    with local.open(f"http://127.0.0.1:{args.port}/api/capabilities", timeout=2) as check:
                         capabilities = json.load(check)
                 except (OSError, ValueError):
                     capabilities = {}

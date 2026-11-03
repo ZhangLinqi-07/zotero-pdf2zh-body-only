@@ -46,7 +46,8 @@ def main():
             subprocess.run([sys.executable, str(ROOT / 'setup_fresh.py'), '--uv', str(uv),
                             '--install-dir', str(target), '--defer-engine', '--start', '--port', str(port)],
                            check=True, timeout=300)
-            with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/capabilities', timeout=3) as response:
+            local = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with local.open(f'http://127.0.0.1:{port}/api/capabilities', timeout=3) as response:
                 assert json.load(response)['version'] == VERSION
             launch = json.loads((root / '.body-only-launch.json').read_text())
             assert launch['server_python'] == str(target / '.server-venv/bin/python')
@@ -54,6 +55,10 @@ def main():
             print(json.dumps({'status': 'passed', 'realFreshBackend': True, 'pinnedUVVerified': True,
                               'privatePythonVenv': True, 'realLaunchd': True, 'backendVersion': VERSION,
                               'userBackendUsed': False, 'externalModelCalls': 0, 'translationEngineDeferred': True}))
+        except Exception:
+            for log in (root / 'body-only-logs').glob('*.log'):
+                print(log.name + ':\n' + log.read_text(errors='replace')[-3500:])
+            raise
         finally:
             subprocess.run(['/bin/launchctl', 'bootout', f'{domain}/{label}'], capture_output=True, timeout=15)
             pidfile = root / f'body-only-logs/server-{port}.pid'
