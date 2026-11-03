@@ -12,7 +12,7 @@
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "a1981101e46c67bdd9d4c8e3fea81c1aebf4a835d95f520c95c4ac11dd70e382",
+      "after_sha256": "6fe710f52c6aac249387a38a6fd20a59d6dab5900cc76d9b552aaced38ba1141",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/codex_chat.py": {
@@ -46,6 +46,9 @@
     },
     "utils/layout_preservation.py": {
       "after_sha256": "207ec55b9ea1eb1fc35653925681776e6b044904601e053dccf1cd20a3ade755"
+    },
+    "utils/loopback_server.py": {
+      "after_sha256": "f669c79fc9c89a95be0f6fcbc9e1051ead2a225d8e412ebc1b66e2df61bdcd92"
     },
     "utils/macos_autostart.py": {
       "after_sha256": "8018002425be5c9ab4841f9758918e1535395b8de1f36c7638cbb6cb8055a350"

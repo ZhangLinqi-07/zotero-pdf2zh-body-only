@@ -46,6 +46,7 @@ from utils.codex_provider import register_codex_provider
 from utils.kinbo_update import register_updater
 from utils.windows_autostart import configure as configure_windows_autostart
 from utils.macos_autostart import configure as configure_macos_autostart
+from utils.loopback_server import LoopbackWSGIServer
 from utils.shared_api import _WRITE_LOCK as shared_api_lock
 
 _VALUE_ERROR_RE = re.compile(r'(?m)^ValueError:\s*(?P<msg>.+)$')
@@ -1329,6 +1330,9 @@ class PDFTranslator:
         print(f"🌐 Server将启动在: http://{host}:{port}")
         print(f"📊 翻译进度监控页面: http://localhost:{port}/")
         print(f"💡 健康检查端点: http://localhost:{port}/health")
+        if sys.platform == 'darwin' and host in {'127.0.0.1', 'localhost'} and not debug:
+            LoopbackWSGIServer('127.0.0.1', port, self.app, handler=_QuietAccessHandler).serve_forever()
+            return
         self.app.run(
             host=host,
             port=port,

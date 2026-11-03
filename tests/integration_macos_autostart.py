@@ -38,13 +38,17 @@ def main():
         (root / '.body-only-launch.json').write_text(json.dumps({'server_python': sys.executable}))
         sentinel = root / 'private-config-fixture.txt'; sentinel.write_text('SYNTHETIC_PRESERVE_SENTINEL')
         (root / 'server.py').write_text('''import argparse, http.server, json
+from socketserver import TCPServer
 parser = argparse.ArgumentParser(); parser.add_argument('--port', type=int); args, _ = parser.parse_known_args()
+class LocalServer(http.server.HTTPServer):
+ def server_bind(self):
+  TCPServer.server_bind(self); self.server_name = '127.0.0.1'; self.server_port = self.server_address[1]
 class Handler(http.server.BaseHTTPRequestHandler):
  def do_GET(self):
   self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers()
   self.wfile.write(json.dumps({'status': 'success', 'version': '0.4.5', 'pdfReading': True}).encode())
  def log_message(self, *args): pass
-http.server.HTTPServer(('127.0.0.1', args.port), Handler).serve_forever()
+LocalServer(('127.0.0.1', args.port), Handler).serve_forever()
 ''')
         try:
             with patch.object(Path, 'home', return_value=home):
@@ -68,7 +72,7 @@ http.server.HTTPServer(('127.0.0.1', args.port), Handler).serve_forever()
                                             ['/usr/sbin/lsof', '-nP', '-a', '-p', pid, '-iTCP'],
                                             ['/usr/bin/sample', pid, '1', '1']):
                                 diagnostic = subprocess.run(command, capture_output=True, text=True, timeout=10)
-                                print(diagnostic.stdout[-12000:] + diagnostic.stderr[-1000:], flush=True)
+                                print(diagnostic.stdout[:9000] + diagnostic.stderr[-1000:], flush=True)
                         logs = '\n'.join(log.read_text(errors='replace')[-2500:] for log in (root / 'body-only-logs').glob('*.log'))
                         state = subprocess.run(['/bin/launchctl', 'print', service], capture_output=True, text=True).stdout
                         raise AssertionError('Real launchd backend did not become reachable\n' + logs + '\n' + state[-4000:])
