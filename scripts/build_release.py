@@ -40,6 +40,12 @@ def build_release(tag, upstream=None, output=None):
         for name in sorted(filter(None, names)):
             if name == 'updates.json':
                 archive.writestr(prefix + name, json.dumps(update, indent=2) + '\n')
+            elif name.endswith('.command'):
+                info = zipfile.ZipInfo(prefix + name)
+                info.create_system = 3
+                info.external_attr = 0o100755 << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(info, (ROOT / name).read_bytes().replace(b'\r\n', b'\n'))
             else:
                 archive.write(ROOT / name, prefix + name)
         archive.write(xpi, prefix + 'zotero-pdf2zh-body-only.xpi')

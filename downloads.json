@@ -11,6 +11,16 @@
     "url": "https://github.com/guaguastandup/zotero-pdf2zh/releases/download/v4.1.7/zotero-pdf-2-zh.xpi",
     "sha256": "e793d3ad169d0d5afaecfa6e6c936afd0f479f91fab99a92cafbf9f3bb89afec"
   },
+  "uv_macos_arm64": {
+    "name": "uv-aarch64-apple-darwin.tar.gz",
+    "url": "https://releases.astral.sh/github/uv/releases/download/0.13.4/uv-aarch64-apple-darwin.tar.gz",
+    "sha256": "e0b1d4743ce64c55d9f0f4a444afa6b81125680070ee04e853fcd0f6c1ebf8f1"
+  },
+  "uv_macos_x64": {
+    "name": "uv-x86_64-apple-darwin.tar.gz",
+    "url": "https://releases.astral.sh/github/uv/releases/download/0.13.4/uv-x86_64-apple-darwin.tar.gz",
+    "sha256": "7be2dcd316122f4b3e5a0a7889f6248266c14425374e105ff7dc9779184603a6"
+  },
   "uv_windows_x64": {
     "name": "uv-x86_64-pc-windows-msvc.zip",
     "url": "https://releases.astral.sh/github/uv/releases/download/0.13.4/uv-x86_64-pc-windows-msvc.zip",

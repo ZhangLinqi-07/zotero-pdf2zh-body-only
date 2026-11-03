@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import hashlib
 import json
+import shutil
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
@@ -25,11 +27,29 @@ class PluginPackageTests(unittest.TestCase):
             'strict_min_version': '6.999', 'strict_max_version': '10.*'}}}
         with zipfile.ZipFile(self.upstream, 'w') as archive:
             archive.writestr('manifest.json', json.dumps(metadata))
-            archive.writestr('bootstrap.js', 'var chromeHandle;\nasync function startup() {\n    Zotero.pdf2zh.hooks.onStartup();\n}\n')
+            archive.writestr('bootstrap.js', '''var chromeHandle;
+async function startup({ rootURI }, reason) {
+    await Zotero.initializationPromise;
+    const ctx = { rootURI };
+    Services.scriptloader.loadSubScript(rootURI + 'pdf2zh.js', ctx);
+    Zotero.pdf2zh.hooks.onStartup();
+}
+async function onMainWindowLoad({ window }, reason) {
+    Zotero.pdf2zh?.hooks.onMainWindowLoad(window);
+}
+async function onMainWindowUnload({ window }, reason) {
+    Zotero.pdf2zh?.hooks.onMainWindowUnload(window);
+}
+function shutdown(data, reason) {
+    if (reason === APP_SHUTDOWN) { return; }
+    Zotero.pdf2zh?.hooks.onShutdown();
+}
+''')
             archive.writestr('prefs.js', 'pref("server", "http://localhost:8890");')
         (self.root / 'downloads.json').write_text(json.dumps({'plugin': {'sha256': hashlib.sha256(self.upstream.read_bytes()).hexdigest()}}))
         for name in ('plugin/body_only_bridge.js', 'plugin/reading_note.js', 'plugin/paper_chat.js', 'plugin/paper_chat_reader.js',
-                     'plugin/paper_chat_view.js', 'plugin/paper_chat.css', 'plugin/backend_update.js',
+                     'plugin/paper_chat_view.js', 'plugin/paper_chat.css', 'plugin/backend_update.js', 'plugin/backend_connection.js',
+                     'payload/utils/macos_autostart.py',
                      'payload/web/vendor/marked.js', 'payload/web/vendor/purify.js', 'LICENSE', 'NOTICE.md'):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,6 +72,8 @@ class PluginPackageTests(unittest.TestCase):
         with zipfile.ZipFile(self.public) as archive:
             metadata = json.loads(archive.read('manifest.json'))
             bootstrap = archive.read('bootstrap.js')
+            for name in ('kinbo-connection.js', 'kinbo-macos-start.py'):
+                self.assertIn('content/scripts/' + name, archive.namelist())
             for name in ('reader', 'view', 'styles'):
                 self.assertIn(f'content/scripts/kinbo-paper-chat-{name}.js', archive.namelist())
             self.assertTrue(archive.read('content/scripts/kinbo-paper-chat-styles.js').startswith(b'var KinboChatStyles = '))
@@ -76,6 +98,15 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(update['update_hash'], 'sha256:' + hashlib.sha256(self.public.read_bytes()).hexdigest())
         self.assertEqual(update['update_link'], 'https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.3.5/zotero-pdf2zh-body-only-v0.3.5.xpi')
         self.assertEqual(update['applications']['zotero']['strict_max_version'], '10.0.*')
+
+    @unittest.skipUnless(shutil.which('node'), 'Bootstrap lifecycle regression requires Node.js')
+    def test_built_bootstrap_cleans_up_after_reader_errors_and_ignores_late_startup(self):
+        self.build()
+        with zipfile.ZipFile(self.public) as archive:
+            bootstrap = archive.read('bootstrap.js').decode()
+        result = subprocess.run(['node', str(ROOT / 'tests/plugin_lifecycle_fixture.js')],
+                                input=bootstrap, text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_development_package_preserves_published_update_channel(self):
         with patch.object(build_plugin, 'ROOT', self.root):

@@ -41,6 +41,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--zotero', required=True)
     parser.add_argument('--xpi', required=True)
+    parser.add_argument('--upgrade-from-xpi', help='Open and close a Reader in this old XPI before upgrading in place')
     parser.add_argument('--output-dir')
     options = parser.parse_args()
     folder = Path(options.output_dir or tempfile.mkdtemp(prefix='kinbo-chat-reader-')).resolve()
@@ -85,7 +86,8 @@ def main():
             chat_sources.append(str(source))
     constants = {'CHAT_TEST_RESULT': str(result), 'CHAT_TEST_XPI': str(Path(options.xpi).resolve()),
                  'CHAT_TEST_PDF': str(pdf_path), 'CHAT_TEST_SOURCES': chat_sources, 'CHAT_TEST_OUTPUT_DIR': str(folder),
-                 'CHAT_TEST_XPI_HASH': hashlib.sha256(xpi_path.read_bytes()).hexdigest()}
+                 'CHAT_TEST_XPI_HASH': hashlib.sha256(xpi_path.read_bytes()).hexdigest(),
+                 'CHAT_TEST_UPGRADE_FROM': str(Path(options.upgrade_from_xpi).resolve()) if options.upgrade_from_xpi else None}
     bootstrap = ''.join('var ' + key + ' = ' + json.dumps(value) + ';\n' for key, value in constants.items())
     bootstrap += Path(__file__).with_name('chat_reader_bootstrap.js').read_text(encoding='utf-8')
     metadata = {'manifest_version': 2, 'name': 'Isolated Kinbo native PDF reader check', 'version': '1.0',

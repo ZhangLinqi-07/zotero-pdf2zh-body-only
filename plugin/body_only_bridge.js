@@ -3,7 +3,7 @@
 var BodyOnlyBridge = (() => {
   const entries = new Map();
   const prefix = 'extensions.zotero.pdf2zh.';
-  let active = false, timer = null, syncing = false, noteTools = null, paperChat = null, updater = null;
+  let active = false, timer = null, syncing = false, noteTools = null, paperChat = null, updater = null, connection = null;
   const readingWindows = new Map(), preparing = new Set();
   class SafeReadingError extends Error {}
   function progressWindow(text) {
@@ -79,6 +79,7 @@ var BodyOnlyBridge = (() => {
   async function openReading(win) {
     let view, preparingKey, acquired = false;
     try {
+      if (connection && !await connection.ensure(win)) return;
       const base = baseURL();
       const capability = await Zotero.HTTP.request('GET', base + '/api/capabilities', { responseType: 'json', timeout: 10000 });
       if (!capability.response?.zoteroNotes || !capability.response?.pdfReading || !capability.response?.readingSearch || !capability.response?.fullPageImageReading) throw new SafeReadingError('请先启动 0.3.6 或更新版本的增强服务，才能使用全部页面图像阅读。无需重新填写 API');
@@ -133,6 +134,7 @@ var BodyOnlyBridge = (() => {
   }
   async function openChat(win) {
     try {
+      if (connection && !await connection.ensure(win)) return;
       if (!paperChat) throw new SafeReadingError('论文对话尚未加载，请重新启用 Kinbo 插件');
       await paperChat.openFromWindow(win);
     } catch (error) {
@@ -230,6 +232,7 @@ var BodyOnlyBridge = (() => {
     if (entry.working) return;
     entry.working = true; entry.revision = (entry.revision || 0) + 1; entry.reading.disabled = true;
     try {
+      if (connection && !await connection.ensure(win)) return;
       if (await readingState(win)) await stopReading(win); else await openReading(win);
     } catch (error) {
       win.alert(error instanceof SafeReadingError ? error.message : '无法确认阅读任务状态，请检查 Kinbo 后台后重试');
@@ -238,19 +241,26 @@ var BodyOnlyBridge = (() => {
     }
   }
   function addWindow(win) {
-    if (entries.has(win)) return;
+    // The pinned upstream appends its current menu. Older failed shutdowns can
+    // leave both an earlier root and bridge actions with duplicate IDs behind.
+    const menus = [...win.document.querySelectorAll('[id="zotero-itemmenu-pdf2zh"]')];
+    const menu = menus.pop();
+    if (entries.get(win)?.menu === menu) return;
+    removeWindow(win);
+    for (const stale of menus) stale.remove();
     const nodes = [];
-    const menu = win.document.getElementById('zotero-itemmenu-pdf2zh');
     const popup = menu?.querySelector('menupopup');
     if (popup) {
+      for (const id of ['pdf2zh-body-only-compare', 'pdf2zh-body-only-reading', 'pdf2zh-body-only-stop-reading',
+        'pdf2zh-body-only-chat', 'pdf2zh-body-only-model', 'kinbo-backend-update', 'kinbo-paper-chat-tools']) {
+        for (const stale of win.document.querySelectorAll('[id="' + id + '"]')) stale.remove();
+      }
+      while (popup.lastElementChild?.localName === 'menuseparator') popup.lastElementChild.remove();
       const labels = [menu, ...popup.querySelectorAll('menuitem')].map(node => [node, node.getAttribute('label')]);
       const menuAttributes = ['image', 'class', 'style'].map(name => [name, menu.getAttribute(name)]);
       menu.setAttribute('label', 'Kinbo');
       menuIcon(menu, 'mark');
       for (const [node, label] of labels.slice(1)) node.setAttribute('label', (label || '').replace(/^PDF2zh[:：]\s*/, ''));
-      win.document.getElementById('pdf2zh-body-only-compare')?.remove();
-      const previous = win.document.getElementById('pdf2zh-body-only-reading');
-      if (previous && previous.parentNode !== popup) previous.remove();
       const separator = win.document.createXULElement('menuseparator');
       popup.appendChild(separator); nodes.push(separator);
       const entry = { nodes, labels, menu, menuAttributes, disposers: [], working: false };
@@ -271,30 +281,41 @@ var BodyOnlyBridge = (() => {
         menuIcon(toolsChat, 'chat'); command(toolsChat, () => openChat(win)); toolsPopup.appendChild(toolsChat); nodes.push(toolsChat);
         const model = win.document.createXULElement('menuitem'); model.id = 'pdf2zh-body-only-model';
         model.setAttribute('label', 'Kinbo 模型后端与 Codex 登录'); menuIcon(model, 'settings');
-        command(model, () => Zotero.launchURL(baseURL() + '/#reading'));
+        command(model, async () => { if (await connection?.ensure(win)) Zotero.launchURL(baseURL() + '/#reading'); });
         toolsPopup.appendChild(model); nodes.push(model);
         const update = win.document.createXULElement('menuitem'); update.id = 'kinbo-backend-update';
         update.setAttribute('label', 'Kinbo 后台更新状态与重试'); menuIcon(update, 'refresh');
-        command(update, () => updater?.tick(true)); toolsPopup.appendChild(update); nodes.push(update);
+        command(update, async () => { if (await connection?.ensure(win)) updater?.tick(true); }); toolsPopup.appendChild(update); nodes.push(update);
       }
       entries.set(win, entry);
     }
   }
   function removeWindow(win) {
     const entry = entries.get(win);
-    for (const dispose of entry?.disposers || []) dispose();
-    for (const node of entry?.nodes || []) node.remove();
-    for (const [node, label] of entry?.labels || []) node.setAttribute('label', label || '');
-    for (const [name, value] of entry?.menuAttributes || []) {
-      if (value === null) entry.menu.removeAttribute(name); else entry.menu.setAttribute(name, value);
-    }
     entries.delete(win);
+    for (const dispose of entry?.disposers || []) cleanup(dispose);
+    for (const node of entry?.nodes || []) cleanup(() => node.remove());
+    for (const [node, label] of entry?.labels || []) cleanup(() => node.setAttribute('label', label || ''));
+    for (const [name, value] of entry?.menuAttributes || []) {
+      cleanup(() => { if (value === null) entry.menu.removeAttribute(name); else entry.menu.setAttribute(name, value); });
+    }
+  }
+  function cleanup(action) {
+    try { action(); } catch (_) { Zotero.logError(new Error('Kinbo plugin cleanup failed')); }
   }
   return { addWindow, removeWindow, openReading, syncNotes,
     start() {
+      if (active) return;
+      active = true;
       if (typeof BodyOnlyLocalServer === 'string' && !preference('bodyOnlyServerMigrated_0_3_0')) {
         Zotero.Prefs.set(prefix + 'new_serverip', BodyOnlyLocalServer, true);
         Zotero.Prefs.set(prefix + 'bodyOnlyServerMigrated_0_3_0', true, true);
+      }
+      if (typeof BodyOnlyRootURI === 'string') {
+        const scope = { Zotero, Services, Components, ChromeUtils };
+        Services.scriptloader.loadSubScript(BodyOnlyRootURI + 'content/scripts/kinbo-connection.js', scope);
+        connection = scope.KinboBackendConnection;
+        connection.start({ baseURL, rootURI: BodyOnlyRootURI });
       }
       for (const win of Zotero.getMainWindows()) addWindow(win);
       if (!paperChat && typeof BodyOnlyRootURI === 'string') {
@@ -304,10 +325,10 @@ var BodyOnlyBridge = (() => {
             Services.scriptloader.loadSubScript(BodyOnlyRootURI + 'content/scripts/' + file, scope);
           }
           paperChat = scope.KinboPaperChat;
-          paperChat.start({ baseURL, syncAPI, rootURI: BodyOnlyRootURI });
+          paperChat.start({ baseURL, syncAPI, rootURI: BodyOnlyRootURI, ensureBackend: win => connection.ensure(win) });
         } catch (_) { Zotero.logError(new Error('Kinbo paper chat initialization failed')); }
       }
-      if (!active) { active = true; pollNotes(); }
+      pollNotes();
       if (!updater && typeof BodyOnlyRootURI === 'string') {
         try {
           const scope = { Zotero, Services };
@@ -317,6 +338,16 @@ var BodyOnlyBridge = (() => {
         } catch (_) { Zotero.logError(new Error('Kinbo updater initialization failed')); }
       }
     },
-    stop() { active = false; updater?.stop(); updater = null; paperChat?.stop(); paperChat = null; if (timer) Zotero.getMainWindow()?.clearTimeout(timer); timer = null; noteTools = null; for (const view of readingWindows.values()) view.popup.close(); readingWindows.clear(); for (const win of [...entries.keys()]) removeWindow(win); },
+    stop() {
+      active = false;
+      cleanup(() => connection?.stop()); connection = null;
+      cleanup(() => updater?.stop()); updater = null;
+      cleanup(() => paperChat?.stop()); paperChat = null;
+      if (timer) cleanup(() => Zotero.getMainWindow()?.clearTimeout(timer));
+      timer = null; noteTools = null;
+      for (const view of readingWindows.values()) cleanup(() => view.popup.close());
+      readingWindows.clear();
+      for (const win of [...entries.keys()]) removeWindow(win);
+    },
   };
 })();

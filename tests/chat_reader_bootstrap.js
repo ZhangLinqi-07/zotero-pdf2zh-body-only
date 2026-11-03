@@ -32,6 +32,24 @@ function startup() {
     try {
       at('install-xpi');
       const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
+      if (CHAT_TEST_UPGRADE_FROM) {
+        at('install-old-xpi-and-close-reader');
+        const previous = await AddonManager.getInstallForFile(Zotero.File.pathToFile(CHAT_TEST_UPGRADE_FROM));
+        check(!previous.error, 'Old release failed validation');
+        await new Promise((resolve, reject) => {
+          previous.addListener({ onInstallEnded: resolve, onInstallFailed: () => reject(new Error('Old XPI install failed')) });
+          previous.install().catch(reject);
+        });
+        await Zotero.Libraries.get(Zotero.Libraries.userLibraryID).waitForDataLoad('item');
+        const oldParent = new Zotero.Item('journalArticle'); oldParent.libraryID = Zotero.Libraries.userLibraryID;
+        oldParent.setField('title', 'Synthetic old-release Reader lifecycle'); await oldParent.saveTx();
+        const oldPDF = await Zotero.Attachments.importFromFile({ file: Zotero.File.pathToFile(CHAT_TEST_PDF), parentItemID: oldParent.id });
+        const oldReader = await Zotero.Reader.open(oldPDF.id);
+        await waitFor(() => oldReader._iframeWindow?.document?.querySelector('[data-kinbo-chat-toggle]'), 'Old-release Reader button did not load');
+        const installed = await AddonManager.getAddonByID('pdf2zh@guaguastandup.com');
+        report.upgradedFromVersion = installed.version;
+        oldReader.close(); await Zotero.Promise.delay(300);
+      }
       const candidate = await AddonManager.getInstallForFile(Zotero.File.pathToFile(CHAT_TEST_XPI));
       check(!candidate.error, 'Preview XPI validation failed ' + candidate.error);
       await new Promise((resolve, reject) => {
@@ -114,6 +132,9 @@ function startup() {
       report.nativeToolbarEntry = true;
       check(Zotero.getMainWindow().document.getElementById('kinbo-paper-chat-tools'), 'The persistent Tools menu entry is missing');
       const mainWindow = Zotero.getMainWindow(), readingMenu = mainWindow.document.getElementById('pdf2zh-body-only-reading');
+      check(mainWindow.document.querySelectorAll('[id="zotero-itemmenu-pdf2zh"]').length === 1, 'Upgrade left duplicate Kinbo/PDF2zh root menus');
+      check(mainWindow.document.querySelectorAll('[id="pdf2zh-body-only-reading"]').length === 1, 'Upgrade left legacy reading entries');
+      report.singleMenuAfterUpgrade = true;
       check(readingMenu, 'The library deep-reading entry is missing');
       check(!mainWindow.document.getElementById('pdf2zh-body-only-chat') && !mainWindow.document.getElementById('pdf2zh-body-only-stop-reading'), 'Redundant context menu actions remain');
       const readingPopup = readingMenu.parentNode;
@@ -283,6 +304,7 @@ function startup() {
       await addon.disable();
       await waitFor(() => !reader._iframeWindow.document.querySelector('[data-kinbo-chat-toggle]'), 'Disabling left native toolbar injection behind');
       check(!Zotero.getMainWindow().document.getElementById('kinbo-paper-chat-tools'), 'Disabling left Tools menu injection behind');
+      check(!Zotero.getMainWindow().document.querySelector('[id="zotero-itemmenu-pdf2zh"]'), 'Disabling left an upstream root menu behind');
       check(!host.querySelector('*|aside.kinbo-paper-chat'), 'Disabling left a sidebar behind');
       await addon.uninstall(); report.nativeDisableCleanup = true; report.nativeUninstall = true;
       at('complete');

@@ -29,7 +29,7 @@ class Node {
   get parentElement() { return this.parentNode; }
 }
 
-function fixture({ existingReader = false, lateToolbar = false } = {}) {
+function fixture({ existingReader = false, lateToolbar = false, ensureBackend } = {}) {
   const listeners = {}, calls = [], prefs = {}, timers = new Map(); let timerID = 0;
   const windowListeners = new Map(), mediaListeners = new Set(), observers = new Map();
   const media = { matches: false, addEventListener: (_, fn) => mediaListeners.add(fn), removeEventListener: (_, fn) => mediaListeners.delete(fn) };
@@ -77,11 +77,19 @@ function fixture({ existingReader = false, lateToolbar = false } = {}) {
   context.KinboChatStyles = fs.readFileSync(path.join(__dirname, '../plugin/paper_chat.css'), 'utf8');
   for (const file of ['paper_chat_reader.js', 'paper_chat_view.js', 'paper_chat.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../plugin/' + file), 'utf8'), context);
   const chat = context.KinboPaperChat;
-  chat.start({ baseURL: () => 'http://127.0.0.1:8893', syncAPI: async () => 'openai' });
+  chat.start({ baseURL: () => 'http://127.0.0.1:8893', syncAPI: async () => 'openai', ensureBackend });
   return { chat, context, reader, doc, calls, listeners, host, iframe, timers, prefs, session, pageDiv, nativeToolbar, observers, win, windowListeners, media, mediaListeners, mutations };
 }
 
 (async () => {
+  let backendReady = false;
+  const gated = fixture({ ensureBackend: async () => backendReady });
+  const gatedPanel = await gated.chat.open(gated.reader);
+  assert.equal(gated.calls.length, 0, 'An unready backend must not receive API sync or session requests');
+  assert.equal(gatedPanel.retry.hidden, false);
+  backendReady = true; await gatedPanel.retry.trigger('click');
+  assert.equal(gatedPanel.session.id, gated.session.id, 'Reader retry must run backend recovery before restoring a session');
+  gated.chat.stop();
   const restored = fixture({ existingReader: true });
   assert.equal(restored.nativeToolbar.children.length, 1, 'An already-open PDF must receive its toolbar entry without a render event');
   restored.listeners.renderToolbar({ reader: restored.reader, doc: restored.doc, append: node => restored.nativeToolbar.appendChild(node) });

@@ -17,6 +17,15 @@ import setup_fresh as setup
 
 
 class FreshInstallTests(unittest.TestCase):
+    def test_macos_installer_uses_the_pinned_platform_checksums(self):
+        script = (ROOT / 'install-macos.command').read_text(encoding='utf-8')
+        manifest = json.loads((ROOT / 'downloads.json').read_text(encoding='utf-8'))
+        for platform in ('uv_macos_arm64', 'uv_macos_x64'):
+            self.assertIn(manifest[platform]['sha256'], script)
+        self.assertIn(manifest['uv_version'], script)
+        self.assertIn('shasum -a 256 --check', script)
+        self.assertIn('--start', script)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="body-only-fresh-")
         self.addCleanup(self.temp.cleanup)
@@ -116,7 +125,7 @@ class FreshInstallTests(unittest.TestCase):
         shutil.copytree(ROOT / "upstream", server)
         install.install(server, server_python=sys.executable)
         command = (server / "start-body-only.cmd").read_text(encoding="utf-8")
-        self.assertIn(str(Path(sys.executable).resolve()).replace("%", "%%"), command)
+        self.assertIn(str(Path(sys.executable).absolute()).replace("%", "%%"), command)
         self.assertIn("chcp 65001", command)
         self.assertNotIn('\npython "', command)
 

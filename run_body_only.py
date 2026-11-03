@@ -24,6 +24,12 @@ def main():
     config = server / ".body-only-launch.json"
     settings = json.loads(config.read_text(encoding="utf-8")) if config.exists() else {}
     python = args.server_python or settings.get("server_python") or sys.executable
+    if not args.server_python and os.name != 'nt':
+        for environment in (server.parent / '.server-venv', server / '.server-venv', server / '.venv'):
+            candidate = environment / 'bin/python'
+            if candidate.is_file():
+                python = str(candidate.absolute())
+                break
     logs = server / "body-only-logs"
     logs.mkdir(exist_ok=True)
     lock = (logs / f"service-{args.port}.lock").open("a+b")
@@ -40,19 +46,22 @@ def main():
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         print("The launcher for this port is already running.")
+        lock.close()
         return
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/api/section-settings", timeout=2) as response:
             if json.load(response).get("status") == "success":
                 try:
                     with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/api/capabilities", timeout=2) as check:
-                        version = json.load(check).get('version')
+                        capabilities = json.load(check)
                 except (OSError, ValueError):
-                    version = None
-                if version == '0.4.3':
+                    capabilities = {}
+                if capabilities.get('pdfReading') and capabilities.get('version'):
                     print(f"Body-only server is already available on port {args.port}.")
+                    lock.close()
                     return
-                raise SystemExit('An older body-only service uses this port. Close its window, or choose --port 8892.')
+                lock.close()
+                raise SystemExit('Another service uses this port. Check the existing backend and configured port.')
     except (OSError, ValueError):
         pass
     env = os.environ.copy()
@@ -79,6 +88,7 @@ def main():
         )
         (logs / f"server-{args.port}.pid").write_text(str(process.pid), encoding="ascii")
         result = process.wait()
+    lock.close()
     if result and result != 75:  # The update worker owns the next service process.
         raise SystemExit(f"Server exited with {result}. Check the log files.")
 

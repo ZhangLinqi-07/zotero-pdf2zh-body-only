@@ -207,6 +207,8 @@ var KinboPaperChat = (() => {
     if (panel.connecting || panel.closed || !started) return panel;
     panel.connecting = true; panel.retry.hidden = true; panel.retry.disabled = true;
     try {
+      if (options.ensureBackend && !await options.ensureBackend(panel.win.top || panel.win)) throw fail('后台尚未连接，点击重新连接可自动启动或关联原后台文件夹');
+      if (panel.closed || !started) return panel;
       await options.syncAPI?.(options.baseURL());
       if (panel.closed) return panel;
       const result = panel.config = await request('/config');

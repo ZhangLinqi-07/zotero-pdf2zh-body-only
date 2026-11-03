@@ -11,8 +11,8 @@ import urllib.parse
 from scripts.build_backend_bundle import build_bytes
 
 ROOT = Path(__file__).resolve().parent
-PLUGIN_VERSION = '4.1.7.16'
-DEVELOPMENT_VERSION = '4.1.7.17pre1'
+PLUGIN_VERSION = '4.1.7.17'
+DEVELOPMENT_VERSION = '4.1.7.18pre1'
 UPDATE_URL = 'https://raw.githubusercontent.com/ZhangLinqi-07/zotero-pdf2zh-body-only/main/updates.json'
 MAX_ZOTERO_VERSION = '10.0.*'
 
@@ -35,14 +35,25 @@ def build(source, destination, server_url=None, development=False):
     metadata['applications']['zotero'].update(update_url=UPDATE_URL, strict_max_version=MAX_ZOTERO_VERSION)
     files['manifest.json'] = json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')
     bootstrap = files['bootstrap.js'].decode('utf-8')
-    bootstrap = bootstrap.replace('var chromeHandle;', 'var chromeHandle;\nvar bodyOnlyBridge;')
+    bootstrap = bootstrap.replace('var chromeHandle;', 'var chromeHandle;\nvar bodyOnlyBridge;\nvar bodyOnlyGeneration = 0;')
+    bootstrap = bootstrap.replace('    await Zotero.initializationPromise;',
+        '    const bodyOnlyLifecycle = ++bodyOnlyGeneration;\n'
+        '    await Promise.all([Zotero.initializationPromise, Zotero.unlockPromise, Zotero.uiReadyPromise]);\n'
+        '    if (bodyOnlyLifecycle !== bodyOnlyGeneration) return;')
+    bootstrap = bootstrap.replace('    const ctx = {',
+        '    if (Zotero.pdf2zh) {\n'
+        '        try { Zotero.pdf2zh.hooks.onShutdown(); }\n'
+        '        catch (_) { Zotero.logError(new Error("Kinbo previous instance cleanup failed")); }\n'
+        '        finally { delete Zotero.pdf2zh; }\n'
+        '    }\n    const ctx = {')
     original = '    Zotero.pdf2zh.hooks.onStartup();'
     if bootstrap.count(original) != 1:
         raise ValueError('Unsupported upstream bootstrap entry')
     bootstrap = bootstrap.replace(original,
         '    const bodyOnlyReady = Zotero.pdf2zh.hooks.onStartup();\n'
         '    Promise.resolve(bodyOnlyReady).then(() => {\n'
-        '    const bridgeContext = { Zotero, Services, BodyOnlyRootURI: rootURI, IOUtils: typeof IOUtils !== "undefined" ? IOUtils : Zotero.getMainWindow()?.IOUtils };\n'
+        '    if (bodyOnlyLifecycle !== bodyOnlyGeneration) return;\n'
+        '    const bridgeContext = { Zotero, Services, Components, ChromeUtils, BodyOnlyRootURI: rootURI, IOUtils: typeof IOUtils !== "undefined" ? IOUtils : Zotero.getMainWindow()?.IOUtils };\n'
         '    Services.scriptloader.loadSubScript(`${rootURI}content/scripts/body-only.js`, bridgeContext);\n'
         '    bodyOnlyBridge = bridgeContext.BodyOnlyBridge;\n    bodyOnlyBridge.start();\n'
         '    }).catch(() => Zotero.logError(new Error("PDF2zh Body Only bridge initialization failed")));')
@@ -55,9 +66,14 @@ def build(source, destination, server_url=None, development=False):
     bootstrap = bootstrap.replace('    Zotero.pdf2zh?.hooks.onMainWindowLoad(window);',
         '    await Zotero.pdf2zh?.hooks.onMainWindowLoad(window);\n    bodyOnlyBridge?.addWindow(window);')
     bootstrap = bootstrap.replace('    Zotero.pdf2zh?.hooks.onMainWindowUnload(window);',
-        '    bodyOnlyBridge?.removeWindow(window);\n    Zotero.pdf2zh?.hooks.onMainWindowUnload(window);')
+        '    try { bodyOnlyBridge?.removeWindow(window); }\n'
+        '    finally { Zotero.pdf2zh?.hooks.onMainWindowUnload(window); }')
+    bootstrap = bootstrap.replace('    if (reason === APP_SHUTDOWN) {',
+        '    bodyOnlyGeneration++;\n    if (reason === APP_SHUTDOWN) {')
     bootstrap = bootstrap.replace('    Zotero.pdf2zh?.hooks.onShutdown();',
-        '    bodyOnlyBridge?.stop();\n    Zotero.pdf2zh?.hooks.onShutdown();')
+        '    try { bodyOnlyBridge?.stop(); }\n'
+        '    catch (_) { Zotero.logError(new Error("Kinbo bridge cleanup failed")); }\n'
+        '    finally { bodyOnlyBridge = null; Zotero.pdf2zh?.hooks.onShutdown(); }')
     files['bootstrap.js'] = ('// Body-only modifications by ZhangLinqi-07, 2026-10-21. SPDX-License-Identifier: AGPL-3.0-only\n' + bootstrap).encode('utf-8')
     files['prefs.js'] = files['prefs.js'].replace(b'http://localhost:8890', b'http://127.0.0.1:8891')
     files['content/scripts/body-only.js'] = (ROOT / 'plugin/body_only_bridge.js').read_bytes()
@@ -70,6 +86,8 @@ def build(source, destination, server_url=None, development=False):
     for name in ('mark', 'read', 'stop', 'chat', 'settings', 'refresh'):
         files[f'content/icons/kinbo-{name}.svg'] = (ROOT / f'plugin/icons/kinbo-{name}.svg').read_bytes()
     files['content/scripts/kinbo-updater.js'] = (ROOT / 'plugin/backend_update.js').read_bytes()
+    files['content/scripts/kinbo-connection.js'] = (ROOT / 'plugin/backend_connection.js').read_bytes()
+    files['content/scripts/kinbo-macos-start.py'] = (ROOT / 'payload/utils/macos_autostart.py').read_bytes()
     bundle, bundle_info = build_bytes(ROOT)
     files['content/kinbo-backend.b64'] = base64.b64encode(bundle)
     files['content/kinbo-backend.json'] = json.dumps(bundle_info, sort_keys=True).encode('utf-8')

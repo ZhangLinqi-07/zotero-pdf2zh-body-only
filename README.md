@@ -32,14 +32,14 @@ Kinbo 是一个面向科研阅读的 Zotero 工具。翻译正文、追问一段
 
 ## 安装与更新
 
-当前正式版本为 **Kinbo 0.4.4**，配套 Zotero 插件 **4.1.7.16**。本轮原生安装与 Reader 验收环境为 Windows、Zotero 10.0.7；安装清单兼容上限为 Zotero 10.0.*，其他版本未逐一完成原生验收。
+当前正式版本为 **Kinbo 0.4.5**，配套 Zotero 插件 **4.1.7.17**。本轮原生安装与 Reader 验收环境为 Windows、Zotero 10.0.7；安装清单兼容上限为 Zotero 10.0.*，其他版本未逐一完成原生验收。
 
 | 你的情况 | 使用入口 |
 | --- | --- |
-| 第一次安装，Windows x64 | [完整安装包 ZIP](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.4/zotero-pdf2zh-body-only-v0.4.4.zip) |
-| 已有 Kinbo 后台，只需安装或覆盖插件 | [Zotero 插件 XPI](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.4/zotero-pdf2zh-body-only-v0.4.4.xpi) |
+| 第一次安装，Windows x64 或 macOS | [完整安装包 ZIP](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.5/zotero-pdf2zh-body-only-v0.4.5.zip) |
+| 已有 Kinbo 后台，只需安装或覆盖插件 | [Zotero 插件 XPI](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.5/zotero-pdf2zh-body-only-v0.4.5.xpi) |
 | 已安装可自动更新的 Kinbo | Zotero「工具 → 插件 → 齿轮 → 检查更新」 |
-| 版本说明与下载校验 | [Release](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/tag/v0.4.4)、SHA256SUMS.txt |
+| 版本说明与下载校验 | [Release](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/tag/v0.4.5)、SHA256SUMS.txt |
 
 ### Windows 首次安装
 
@@ -63,7 +63,7 @@ install-windows.cmd --index-url https://mirrors.ustc.edu.cn/pypi/simple
 
 后台 **0.4.1 及更新版本**可以通过 Zotero 检查插件更新获得正式 XPI。插件携带配套后台源码包，会在翻译、阅读和对话任务空闲后校验、备份、同步及重启；启动检查失败时恢复旧版源码。API 配置、论文、译文、阅读历史、Zotero 笔记和 Python 环境保留。
 
-首次更新时原后台需要正在运行。尚未完成自启动配置、已经关闭的旧后台，请先手动启动一次。远程后台、修改过的受管理源码或依赖范围不匹配时，会明确提示人工处理。
+打开论文对话、深度阅读或模型设置时，会先检查后台连接。Windows 尝试唤醒已有的 Kinbo 计划任务；macOS 自动唤醒已关联后台，首次无法找到原安装位置时可在 Zotero 中选择包含 server.py 的原后台文件夹，关联后配置登录自动启动。端口沿用当前设置，不需要输入启动命令或重新填写 API。远程 / HTTPS 后台、未安装后台、修改过的受管理源码或依赖范围不匹配时，会提示相应处理方式。
 
 后台 **0.3.x / 0.4.0pre1** 需要先完成一次迁移：下载本版 ZIP，等待活动任务结束并停止原后台，使用原服务的 Python 对原目录安装，再运行原启动器。
 
@@ -73,9 +73,18 @@ python install.py --server-dir "原后台目录" --force
 
 缺少有效更新地址的早期插件也需手动覆盖安装本版 XPI。无需先卸载插件或删除已有配置。源码推送本身不会触发升级；只有正式 Release 和更新清单完成发布后，检查更新才会提供新版。
 
-### macOS、Linux 与已有 Python 环境
+### macOS 首次安装
 
-可使用 Python 安装入口；跨平台安装与更新逻辑有自动测试，完整原生翻译和 Zotero 安装仍需对应环境验证。创建全新环境时，需要 Python 3.10+ 和 uv，安装器会另外准备 Python 3.12：
+1. 下载上方完整 ZIP 并解压，双击 install-macos.command，按系统提示允许运行。
+2. 安装器支持 Apple Silicon 和 Intel Mac，自动校验下载工具并准备独立 Python 3.12，无需预装 Python 或输入命令。
+3. 后台放在 ~/Library/Application Support/Kinbo/app。安装器等待服务就绪后打开 Zotero，并在 Finder 中选中 XPI；在 Zotero「工具 → 插件 → 从文件安装」中安装它。
+4. 首次安装的后台地址为 http://127.0.0.1:8891。在 Zotero 中配置模型后即可使用；以后登录自动启动。
+
+已有后台的用户优先更新 XPI，并从 Zotero 的连接提示中关联原后台目录，以保留原 Python 环境、端口与 API。系统登录项若禁用了 Kinbo，需要重新允许后台运行。后台是独立服务，关闭 Zotero 不会中断正在执行的翻译或阅读。
+
+### Linux 与已有 Python 环境
+
+也可使用 Python 安装入口。创建全新环境时，需要 Python 3.10+ 和 uv，安装器会另外准备 Python 3.12：
 
 ```console
 python setup_fresh.py --install-dir "新的安装目录" --start
@@ -133,9 +142,11 @@ Kinbo 不提供公共模型额度。免费翻译服务可用于其支持的翻�
 
 ## 常见问题
 
-**检查更新显示没有新版。** 核对插件当前版本、更新地址和 Release 是否已完成发布。0.4.4 对应插件 4.1.7.16；仅拉取仓库源码不会替换已安装的 XPI。也可从本版 Release 手动覆盖安装。
+**更新后出现 Kinbo / PDF2zh 两个菜单或旧阅读入口。** 0.4.5 修复了覆盖升级时的旧界面清理。安装新版后完全退出并重新打开 Zotero；正常情况下只显示一个 Kinbo 菜单，阅读区只保留「深度阅读 / 停止阅读」。
 
-**插件已更新，但后台无法连接。** 确认原后台正在运行、端口与 Zotero 设置一致。新安装默认 8891，已有用户可能使用其他端口；浏览器访问该地址可检查服务。更新不能唤醒尚未配置自启动的旧后台。
+**检查更新显示没有新版。** 核对插件当前版本、更新地址和 Release 是否已完成发布。0.4.5 对应插件 4.1.7.17；仅拉取仓库源码不会替换已安装的 XPI。也可从本版 Release 手动覆盖安装。
+
+**插件已更新，但后台无法连接。** 新版会先尝试自动恢复；Mac 首次可能提示关联原后台文件夹，选择包含 server.py 的目录即可。新安装默认 8891，已有用户可能使用 8892 等端口，需与后台一致。只有 XPI、尚未安装后台的电脑应先运行对应系统的完整安装器；远程服务需由服务器管理员启动。
 
 **Codex 登录或联网阅读失败。** 先核对本机 CLI、官方登录状态，以及所选服务是否支持要求的工具。错误中的步骤和错误码可用于排查；不要在问题反馈中粘贴密钥、登录令牌、完整配置或私人论文。
 

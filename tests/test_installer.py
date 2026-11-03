@@ -14,6 +14,13 @@ import restore
 
 
 class PortableInstallerTests(unittest.TestCase):
+    def test_explicit_python_keeps_the_venv_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / '.venv/bin/python'
+            executable.parent.mkdir(parents=True); executable.touch()
+            with patch.object(Path, 'resolve', side_effect=AssertionError('Venv executable must not be resolved')):
+                self.assertEqual(install.select_python(Path(directory), str(executable)), str(executable.absolute()))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="body-only-test-")
         self.addCleanup(self.temp.cleanup)

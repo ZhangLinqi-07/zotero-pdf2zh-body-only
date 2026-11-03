@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 import zipfile
 
@@ -185,7 +186,10 @@ def main():
     parser.add_argument("--plugin-xpi", help="Previously downloaded, unmodified upstream XPI")
     parser.add_argument("--defer-engine", action="store_true", help="Install the translation engine on first use instead")
     parser.add_argument("--start", action=argparse.BooleanOptionalAction, default=False, help="Start the local service after installation")
+    parser.add_argument("--port", type=int, default=8891, help="Port for this new local backend")
     args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error('port must be between 1 and 65535')
     try:
         target, server, plugin = prepare_sources(args.install_dir, args.server_archive, args.plugin_xpi)
         python = prepare_environments(target, args.uv, args.index_url, args.defer_engine)
@@ -201,11 +205,29 @@ def main():
         result.update(plugin_file=str(plugin), engine_deferred=args.defer_engine)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         print("Install the XPI in Zotero's Add-ons window.")
-        print("Set PDF2zh server URL to http://127.0.0.1:8891 and engine to pdf2zh_next.")
+        print(f"Set PDF2zh server URL to http://127.0.0.1:{args.port} and engine to pdf2zh_next.")
         print("Free translation or your own API can be selected in Zotero.")
         print("Keep this installation folder in place. First translation may download model assets.")
         if args.start:
-            subprocess.run([str(python), str(server / "run_body_only.py"), "--server-dir", str(server)], check=True)
+            if sys.platform == 'darwin':
+                from payload.utils.macos_autostart import configure
+                startup = configure(server, args.port, start=True)
+                if startup['state'] != 'enabled':
+                    raise ValueError(startup['message'])
+                print('正在等待 Kinbo 后台就绪…', flush=True)
+                for _ in range(30):
+                    try:
+                        with urllib.request.urlopen(f'http://127.0.0.1:{args.port}/api/capabilities', timeout=1) as response:
+                            if json.load(response).get('pdfReading'):
+                                break
+                    except (OSError, ValueError):
+                        pass
+                    time.sleep(.5)
+                else:
+                    raise ValueError(f'后台尚未就绪，请检查 {server / "body-only-logs"} 中的启动日志')
+                print(startup['message'])
+            else:
+                subprocess.run([str(python), str(server / "run_body_only.py"), "--server-dir", str(server), '--port', str(args.port)], check=True)
     except (OSError, ValueError, subprocess.CalledProcessError, zipfile.BadZipFile) as error:
         parser.exit(1, f"Installation stopped. Run again to resume. {error}\n")
 

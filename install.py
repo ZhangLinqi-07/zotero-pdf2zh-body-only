@@ -13,7 +13,7 @@ import tempfile
 import uuid
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "0.4.4"
+VERSION = "0.4.5"
 STATE = ".body-only-installed.json"
 
 
@@ -38,7 +38,7 @@ def atomic_write(path, content):
 
 def select_python(server, specified=None):
     if specified:
-        candidate = Path(specified).expanduser().resolve()
+        candidate = Path(specified).expanduser().absolute()
         if not candidate.is_file():
             raise ValueError("The specified server Python executable does not exist")
         return str(candidate)
@@ -46,8 +46,8 @@ def select_python(server, specified=None):
         for relative in ("Scripts/python.exe", "bin/python"):
             candidate = environment / relative
             if candidate.is_file():
-                return str(candidate.resolve())
-    return str(Path(sys.executable).resolve())
+                return str(candidate.absolute())
+    return str(Path(sys.executable).absolute())
 
 
 def install(server_dir, server_python=None, force=False, dry_run=False):
