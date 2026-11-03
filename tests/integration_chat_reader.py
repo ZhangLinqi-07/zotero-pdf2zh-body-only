@@ -42,6 +42,7 @@ def main():
     parser.add_argument('--zotero', required=True)
     parser.add_argument('--xpi', required=True)
     parser.add_argument('--upgrade-from-xpi', help='Open and close a Reader in this old XPI before upgrading in place')
+    parser.add_argument('--cold-start', action='store_true', help='Preinstall the XPI before Zotero initialization')
     parser.add_argument('--output-dir')
     options = parser.parse_args()
     folder = Path(options.output_dir or tempfile.mkdtemp(prefix='kinbo-chat-reader-')).resolve()
@@ -89,7 +90,10 @@ def main():
                  'CHAT_TEST_XPI_HASH': hashlib.sha256(xpi_path.read_bytes()).hexdigest(),
                  'CHAT_TEST_UPGRADE_FROM': str(Path(options.upgrade_from_xpi).resolve()) if options.upgrade_from_xpi else None}
     bootstrap = ''.join('var ' + key + ' = ' + json.dumps(value) + ';\n' for key, value in constants.items())
-    bootstrap += Path(__file__).with_name('chat_reader_bootstrap.js').read_text(encoding='utf-8')
+    harness = 'cold_start_bootstrap.js' if options.cold_start else 'chat_reader_bootstrap.js'
+    bootstrap += Path(__file__).with_name(harness).read_text(encoding='utf-8')
+    if options.cold_start:
+        (profile / 'extensions/pdf2zh@guaguastandup.com.xpi').write_bytes(xpi_path.read_bytes())
     metadata = {'manifest_version': 2, 'name': 'Isolated Kinbo native PDF reader check', 'version': '1.0',
                 'applications': {'zotero': {'id': 'kinbo-chat-reader-check@local.invalid',
                  'update_url': 'https://example.invalid/updates.json', 'strict_min_version': '10.0',

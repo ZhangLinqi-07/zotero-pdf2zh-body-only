@@ -36,6 +36,7 @@ function fixture({ waitForUI = false, waitForUpstream = false, previous = false 
 
   const deferred = fixture({ waitForUpstream: true });
   await deferred.scope.startup({ rootURI: 'fixture:///' }, 1);
+  await flush();
   deferred.scope.shutdown({}, 1); deferred.upstreamReady(); await flush();
   assert.equal(deferred.calls.started, 0, 'Disabled plugin must not inject a late bridge');
 

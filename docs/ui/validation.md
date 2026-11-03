@@ -81,3 +81,10 @@ python tests/integration_chat_reader.py --zotero <Zotero可执行文件> --xpi <
 Windows Zotero 10.0.7 隔离环境中，从 4.1.7.15 打开并关闭 Reader 后覆盖安装 4.1.7.17，验证单菜单、浅深色、选文提问、历史、页码 / 高亮、取消、独立 Reader 切换、停用与卸载。测试使用两页合成 PDF、模拟模型接口，未使用日常资料库或收费模型。
 
 macOS 的 LaunchAgent 和全新后台安装加入 macOS CI：前者用临时标准库服务验证实际 launchd 与重复唤醒不重启，后者校验 uv 下载并用独立 Python 环境安装实际后台，翻译引擎延后安装；均清理临时服务。CI 缺少 GUI 登录域时明确记录 skipped，不算实机通过。Mac 原生 Zotero 界面仍需用户设备复测。
+
+
+最终跨平台 CI [41610728554](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/actions/runs/41610728554) 全部通过：每个平台 187 项 Python 检查；Windows 跳过 12 项，macOS / Linux 跳过 11 项，另有六组 JavaScript 检查及真实后台更新集成。macOS 实际 LaunchAgent 启动 / 保留原进程通过；完整新后台安装、固定哈希 uv、独立 Python venv、实际后台 0.4.5 就绪均通过，未使用用户后台或模型额度。
+
+macOS 初次系统测试发现 HTTPServer 在 listen 前的反向 DNS 查询阻塞本机服务启动。仅为 Mac 本机非调试服务使用跳过该查询的 Werkzeug 线程服务器；单元测试阻止 getfqdn 并通过真实 HTTP 验证原 Flask 路由，随后上述两个 Mac 系统集成测试通过。远程 / 调试服务保留原启动方式，后台 Web 页和 API 不变。
+
+补充 Windows Zotero 10.0.7 冷启动：XPI 在进程启动前已放入隔离 profile，验证 UI 正常就绪、仅一个 Kinbo 菜单及 Tools 入口。bootstrap 不阻塞应用等待 UI ready，停用期间的延迟初始化仍由生命周期序号拦截。另从公开 4.1.7.16 覆盖升级至 4.1.7.17，Reader 功能与停用 / 卸载清理通过。

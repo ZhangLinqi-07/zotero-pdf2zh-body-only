@@ -38,9 +38,11 @@ def build(source, destination, server_url=None, development=False):
     bootstrap = bootstrap.replace('var chromeHandle;', 'var chromeHandle;\nvar bodyOnlyBridge;\nvar bodyOnlyGeneration = 0;')
     bootstrap = bootstrap.replace('    await Zotero.initializationPromise;',
         '    const bodyOnlyLifecycle = ++bodyOnlyGeneration;\n'
-        '    await Promise.all([Zotero.initializationPromise, Zotero.unlockPromise, Zotero.uiReadyPromise]);\n'
+        '    await Zotero.initializationPromise;\n'
         '    if (bodyOnlyLifecycle !== bodyOnlyGeneration) return;')
     bootstrap = bootstrap.replace('    const ctx = {',
+        '    Promise.all([Zotero.unlockPromise, Zotero.uiReadyPromise]).then(async () => {\n'
+        '    if (bodyOnlyLifecycle !== bodyOnlyGeneration) return;\n'
         '    if (Zotero.pdf2zh) {\n'
         '        try { Zotero.pdf2zh.hooks.onShutdown(); }\n'
         '        catch (_) { Zotero.logError(new Error("Kinbo previous instance cleanup failed")); }\n'
@@ -50,8 +52,7 @@ def build(source, destination, server_url=None, development=False):
     if bootstrap.count(original) != 1:
         raise ValueError('Unsupported upstream bootstrap entry')
     bootstrap = bootstrap.replace(original,
-        '    const bodyOnlyReady = Zotero.pdf2zh.hooks.onStartup();\n'
-        '    Promise.resolve(bodyOnlyReady).then(() => {\n'
+        '    await Zotero.pdf2zh.hooks.onStartup();\n'
         '    if (bodyOnlyLifecycle !== bodyOnlyGeneration) return;\n'
         '    const bridgeContext = { Zotero, Services, Components, ChromeUtils, BodyOnlyRootURI: rootURI, IOUtils: typeof IOUtils !== "undefined" ? IOUtils : Zotero.getMainWindow()?.IOUtils };\n'
         '    Services.scriptloader.loadSubScript(`${rootURI}content/scripts/body-only.js`, bridgeContext);\n'
