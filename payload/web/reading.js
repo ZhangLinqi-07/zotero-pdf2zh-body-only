@@ -68,7 +68,8 @@
     const [data, backend, reading] = await Promise.all([api('/api/paper-chat/config'), api('/api/model-backend'), api('/api/reading/config')]);
     const account = data.codex || {};
     $('codexAccountStatus').textContent = account.message || '尚未登录 Codex';
-    $('loginCodex').disabled = account.authenticated === true;
+    $('loginCodex').disabled = account.available === false || account.authenticated === true;
+    $('codexInstallHelp').hidden = account.available !== false;
     $('translationBackend').value = backend.settings.translationBackend;
     $('readingBackend').value = reading.options.backend || 'api';
     const select = $('codexModel');
@@ -105,7 +106,7 @@
         } catch (error) { info.textContent = error.message; }
       };
       if (!login.authenticated) loginPolling = setTimeout(check, 3000); else await loadCodex();
-    } catch (error) { status(error.message, 'error'); }
+    } catch (error) { $('codexLoginInfo').textContent = error.message; $('codexLoginInfo').hidden = false; }
   }
   async function saveModelBackend() {
     try {

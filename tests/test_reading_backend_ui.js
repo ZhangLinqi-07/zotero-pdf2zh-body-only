@@ -15,7 +15,7 @@ class Element {
 (async () => {
   const elements = new Map(), calls = [], loadHandlers = [];
   const get = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
-  let authenticated = true, backend = 'api';
+  let authenticated = true, available = true, backend = 'api';
   const profiles = () => [
     { id: 'openaicompatible', label: 'Existing API', model: 'existing-model', endpoint: 'https://example.invalid/v1', configured: true },
     { id: 'codex', label: 'Codex', model: 'Default', configured: authenticated },
@@ -35,7 +35,8 @@ class Element {
           options: { backend, codexModel: '', documentMode: 'auto', pdfProtocol: 'auto', searchProvider: 'auto' } };
       } else if (url === '/api/capabilities') result = { ...result, readingSearch: true, fullPageImageReading: true };
       else if (url === '/api/layout-settings') result = { ...result, settings: { preserveColumns: true, mathMode: 'auto' } };
-      else if (url === '/api/paper-chat/config') result = { ...result, codex: { available: true, authenticated, message: 'Local status' } };
+      else if (url === '/api/paper-chat/config') result = { ...result, codex: { available, authenticated, message: 'Local status' } };
+      else if (url === '/api/paper-chat/login') result = { status: 'error', message: 'Codex login fixture failed' };
       else if (url.startsWith('/api/paper-chat/models')) result = { ...result, models: [] };
       else if (url === '/api/model-backend') result = { ...result, settings: { translationBackend: 'api', model: '' } };
       else if (url === '/api/reading/jobs') result = { ...result, jobs: [] };
@@ -63,6 +64,23 @@ class Element {
   get('readingProvider').value = 'openaicompatible';
   get('readingProvider').handlers.change();
   assert.equal(get('startReading').disabled, false, 'An explicit API selection can enable reading');
+  available = false;
+  const modelCalls = calls.filter(call => call.url.startsWith('/api/paper-chat/models')).length;
+  await get('refreshCodex').handlers.click();
+  assert.equal(get('loginCodex').disabled, true, 'Missing Codex cannot start a login');
+  assert.equal(get('codexInstallHelp').hidden, false, 'Missing Codex shows installation guidance');
+  assert.equal(get('readingProvider').value, 'openaicompatible');
+  assert.equal(get('startReading').disabled, false, 'Missing Codex must not block the selected API');
+  assert.equal(calls.filter(call => call.url.startsWith('/api/paper-chat/models')).length, modelCalls);
+  available = true;
+  await get('refreshCodex').handlers.click();
+  assert.equal(get('loginCodex').disabled, false, 'Refresh detects an installed Codex without reloading the page');
+  assert.equal(get('codexInstallHelp').hidden, true);
+  const readingStatus = get('readingStatus').textContent;
+  await get('loginCodex').handlers.click();
+  assert.equal(get('codexLoginInfo').hidden, false);
+  assert.equal(get('codexLoginInfo').textContent, 'Codex login fixture failed');
+  assert.equal(get('readingStatus').textContent, readingStatus, 'Codex login errors stay beside the login controls');
   assert.equal(calls.filter(call => call.url === '/api/reading/jobs' && call.method === 'POST').length, 0);
   console.log('Reading backend selection and expired-login billing isolation passed');
 })().catch(error => { console.error(error); process.exit(1); });

@@ -207,6 +207,36 @@ class CodexClientTests(unittest.TestCase):
              patch('utils.codex_chat.os.access', return_value=True):
             self.assertTrue(find_codex().replace('\\', '/').endswith('/opt/homebrew/bin/codex'))
 
+    def test_mac_desktop_bundle_is_found_without_a_separate_cli(self):
+        home = Path(self.temp.name)
+        for app_dir in (Path('/Applications'), home / 'Applications'):
+            executable = app_dir / 'Codex.app/Contents/Resources/codex'
+            with self.subTest(app_dir=app_dir), \
+                 patch('utils.codex_chat.platform.system', return_value='Darwin'), \
+                 patch('utils.codex_chat.shutil.which', return_value=None), \
+                 patch.dict('os.environ', {}, clear=True), \
+                 patch('utils.codex_chat.Path.home', return_value=home), \
+                 patch('utils.codex_chat.Path.is_file', lambda path: path == executable), \
+                 patch('utils.codex_chat.os.access', return_value=True):
+                found = find_codex()
+                self.assertEqual(found, str(executable.resolve()))
+                self.assertEqual(_launch_prefix(found), [found])
+                with patch.object(self.client, '_control_rpc', return_value=FakeRPC()):
+                    self.assertTrue(self.client.status()['authenticated'])
+
+    def test_mac_desktop_bundle_must_be_executable(self):
+        executable = Path('/Applications/Codex.app/Contents/Resources/codex')
+        with patch('utils.codex_chat.platform.system', return_value='Darwin'), \
+             patch('utils.codex_chat.shutil.which', return_value=None), \
+             patch.dict('os.environ', {}, clear=True), \
+             patch('utils.codex_chat.Path.home', return_value=Path(self.temp.name)), \
+             patch('utils.codex_chat.Path.is_file', lambda path: path == executable), \
+             patch('utils.codex_chat.os.access', return_value=False), \
+             patch.object(self.client, '_control_rpc') as rpc:
+            self.assertIsNone(find_codex())
+            self.assertFalse(self.client.status()['available'])
+            rpc.assert_not_called()
+
     def test_cli_version_returns_only_version_not_extra_output(self):
         result = type('Result', (), {'stdout': 'private account info\ncodex-cli 0.141.0-alpha.1\n'})()
         with patch('utils.codex_chat.subprocess.run', return_value=result):

@@ -13,7 +13,7 @@ import tempfile
 import uuid
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "0.4.5"
+VERSION = "0.4.6"
 STATE = ".body-only-installed.json"
 
 

@@ -5,18 +5,18 @@
   "babeldoc": "0.6.2",
   "files": {
     "index.html": {
-      "after_sha256": "fa59f9f1c5602f45a3a278ccdeae6705d1627ba99bf2af38140b78282b259ba5",
+      "after_sha256": "532e3a156fa6152c18c56046b05e011b465497f3a0b43d4c68b45c21dbed3305",
       "before_sha256": "0aa5ef966b1afd8c04fc19d9d115762f43be91859b45ddd973101c0c774eca3d"
     },
     "prompts/deep_reading_zh.txt": {
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "6fe710f52c6aac249387a38a6fd20a59d6dab5900cc76d9b552aaced38ba1141",
+      "after_sha256": "f968114ff374a1e849e56ca134fcb87a48cf1a6f6b482ea98dee069f5873f104",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/codex_chat.py": {
-      "after_sha256": "fcef5ada60a182892b5b47f20a53cf01e0097c4b86f01f9f0b65e6aed1ad38b7"
+      "after_sha256": "5589e771e9120e8588dcae68344d2f499cd8c8df9fa34ca375882bc81ca67cf7"
     },
     "utils/codex_provider.py": {
       "after_sha256": "914a65adfc6236546268efdddd3162503cfe33eac518c57d64945fadddcf0253"
@@ -84,7 +84,7 @@
       "after_sha256": "03cd3f05a6f7f5a34d87333d00a23372a747bd47bb9c021bfae036858e418ddb"
     },
     "web/reading.js": {
-      "after_sha256": "65a1c6f9654608d3b16e6412a188efa51edfb02c10093dd6c321a0c2fb98f93d"
+      "after_sha256": "bcf02195a64d80f163378eeb982c9c0ab3e0e41464aa7ecac0451f12334dec23"
     },
     "web/vendor/dompurify-LICENSE-0.txt": {
       "after_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"

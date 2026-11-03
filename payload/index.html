@@ -382,7 +382,8 @@
               <p id="codexAccountStatus" role="status">正在检查本机 Codex 登录</p>
               <button class="reading-button secondary" id="loginCodex">登录 Codex</button>
               <button class="reading-button secondary" id="refreshCodex">刷新登录与模型</button>
-              <p id="codexLoginInfo" hidden></p>
+              <p id="codexInstallHelp" hidden>Mac 可直接使用“应用程序”文件夹中的 Codex 桌面版，也可按<a href="https://learn.chatgpt.com/docs/codex/cli" target="_blank" rel="noopener noreferrer">官方说明安装 Codex CLI</a>，然后点“刷新登录与模型”。使用现有翻译 API 无需安装 Codex。</p>
+              <p id="codexLoginInfo" role="status" aria-live="polite" hidden></p>
               <label class="reading-field">默认深度阅读后端<select id="readingBackend"><option value="api">现有翻译 API</option><option value="codex">Codex 登录</option></select></label>
               <label class="reading-field">PDF 翻译后端<select id="translationBackend"><option value="api">现有翻译 API</option><option value="codex">Codex 登录</option></select></label>
               <label class="reading-field">Codex 模型<select id="codexModel"><option value="">使用 Codex 默认模型</option></select></label>

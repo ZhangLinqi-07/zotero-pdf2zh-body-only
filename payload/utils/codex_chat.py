@@ -81,7 +81,9 @@ def find_codex():
     if platform.system() == 'Darwin':
         # GUI-launched services commonly omit Homebrew/user bins from PATH.
         for candidate in (Path('/opt/homebrew/bin/codex'), Path('/usr/local/bin/codex'),
-                          Path.home() / '.local/bin/codex', Path.home() / '.npm-global/bin/codex'):
+                          Path.home() / '.local/bin/codex', Path.home() / '.npm-global/bin/codex',
+                          Path('/Applications/Codex.app/Contents/Resources/codex'),
+                          Path.home() / 'Applications/Codex.app/Contents/Resources/codex'):
             if candidate.is_file() and os.access(candidate, os.X_OK):
                 return str(candidate.resolve())
     # Zotero may start its backend with an older PATH than the desktop app.

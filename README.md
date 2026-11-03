@@ -32,14 +32,14 @@ Kinbo 是一个面向科研阅读的 Zotero 工具。翻译正文、追问一段
 
 ## 安装与更新
 
-当前正式版本为 **Kinbo 0.4.5**，配套 Zotero 插件 **4.1.7.17**。本轮原生安装与 Reader 验收环境为 Windows、Zotero 10.0.7；安装清单兼容上限为 Zotero 10.0.*，其他版本未逐一完成原生验收。
+当前正式版本为 **Kinbo 0.4.6**，配套 Zotero 插件 **4.1.7.18**。本轮原生安装与 Reader 验收环境为 Windows、Zotero 10.0.7；安装清单兼容上限为 Zotero 10.0.*，其他版本未逐一完成原生验收。
 
 | 你的情况 | 使用入口 |
 | --- | --- |
-| 第一次安装，Windows x64 或 macOS | [完整安装包 ZIP](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.5/zotero-pdf2zh-body-only-v0.4.5.zip) |
-| 已有 Kinbo 后台，只需安装或覆盖插件 | [Zotero 插件 XPI](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.5/zotero-pdf2zh-body-only-v0.4.5.xpi) |
+| 第一次安装，Windows x64 或 macOS | [完整安装包 ZIP](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.6/zotero-pdf2zh-body-only-v0.4.6.zip) |
+| 已有 Kinbo 后台，只需安装或覆盖插件 | [Zotero 插件 XPI](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.6/zotero-pdf2zh-body-only-v0.4.6.xpi) |
 | 已安装可自动更新的 Kinbo | Zotero「工具 → 插件 → 齿轮 → 检查更新」 |
-| 版本说明与下载校验 | [Release](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/tag/v0.4.5)、SHA256SUMS.txt |
+| 版本说明与下载校验 | [Release](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/tag/v0.4.6)、SHA256SUMS.txt |
 
 ### Windows 首次安装
 
@@ -128,7 +128,7 @@ python install.py --server-dir "原后台目录" --server-python "原服务的Py
 
 Zotero 工具菜单中的 **Kinbo 模型后端与 Codex 登录**打开本地模型控制页。翻译、深度阅读和论文对话可按各自设置使用模型后端。
 
-API 可复用 OpenAI 兼容接口、OpenAI、Gemini、DeepSeek 等已有配置；能翻译文本不代表接口能接收完整 PDF 或执行搜索。Codex 需要本机已安装 CLI，并完成官方登录；可用模型和额度由实际账号返回，Kinbo 不另存登录令牌，也不修改用户的 Codex 工程配置。
+API 可复用 OpenAI 兼容接口、OpenAI、Gemini、DeepSeek 等已有配置；能翻译文本不代表接口能接收完整 PDF 或执行搜索。Codex 需要本机有可用程序并完成官方登录。Mac 会自动查找系统或用户“应用程序”文件夹内 Codex 桌面版自带的程序，无需另装 CLI；也支持单独安装的 CLI。安装后点“刷新登录与模型”。可用模型和额度由实际账号返回，Kinbo 不另存登录令牌，也不修改用户的 Codex 工程配置。使用现有翻译 API 无需安装或登录 Codex。
 
 深度阅读接受最大 50 MB 的完整 PDF；全部页面图像模式按顺序渲染每一页，不静默截断。DeepSeek 官方图像模式另有 600 页、单页尺寸及序列化请求 48 MiB 检查。服务商仍可能限制文件、上下文和单次输出，超限会明确报错。
 
@@ -144,7 +144,7 @@ Kinbo 不提供公共模型额度。免费翻译服务可用于其支持的翻�
 
 **更新后出现 Kinbo / PDF2zh 两个菜单或旧阅读入口。** 0.4.5 修复了覆盖升级时的旧界面清理。安装新版后完全退出并重新打开 Zotero；正常情况下只显示一个 Kinbo 菜单，阅读区只保留「深度阅读 / 停止阅读」。
 
-**检查更新显示没有新版。** 核对插件当前版本、更新地址和 Release 是否已完成发布。0.4.5 对应插件 4.1.7.17；仅拉取仓库源码不会替换已安装的 XPI。也可从本版 Release 手动覆盖安装。
+**检查更新显示没有新版。** 核对插件当前版本、更新地址和 Release 是否已完成发布。0.4.6 对应插件 4.1.7.18；仅拉取仓库源码不会替换已安装的 XPI。也可从本版 Release 手动覆盖安装。
 
 **插件已更新，但后台无法连接。** 新版会先尝试自动恢复；Mac 首次可能提示关联原后台文件夹，选择包含 server.py 的目录即可。新安装默认 8891，已有用户可能使用 8892 等端口，需与后台一致。只有 XPI、尚未安装后台的电脑应先运行对应系统的完整安装器；远程服务需由服务器管理员启动。
 
