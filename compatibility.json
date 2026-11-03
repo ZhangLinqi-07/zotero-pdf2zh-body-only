@@ -12,7 +12,7 @@
       "after_sha256": "ad4ce7158191580b53587d7e3527d74c5155c7ac2b2e49fc295598080d8600a1"
     },
     "server.py": {
-      "after_sha256": "7d6d4e19af70ab18faf3abc17d5542ac52d250c23211ab92cecabcedf9d9350d",
+      "after_sha256": "8b64a67042429414ac9908bd1e0318f3e81c18a42c17c53103d90be827fc63d7",
       "before_sha256": "07e30b18912abe9d78d4993542ee9b5f277fd4f2f35d55d056bbabd8327ebfee"
     },
     "utils/codex_chat.py": {

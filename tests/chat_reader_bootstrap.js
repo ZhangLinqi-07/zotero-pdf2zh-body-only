@@ -42,7 +42,8 @@ function startup() {
       });
       const addon = await AddonManager.getAddonByID('pdf2zh@guaguastandup.com');
       check(addon?.isActive && !addon.appDisabled && !addon.userDisabled, 'Preview XPI is disabled');
-      report.regularXpiInstall = true; report.addonVersion = addon.version; report.zoteroVersion = Zotero.version;
+      check(addon.name === 'Kinbo', 'Installed plugin did not use the Kinbo product name');
+      report.regularXpiInstall = true; report.addonVersion = addon.version; report.addonName = addon.name; report.zoteroVersion = Zotero.version;
       at('import-synthetic-pdf');
       // uiReadyPromise can resolve before the initial empty-library item load.
       // Creating items during that load races relation hydration on a fresh profile.

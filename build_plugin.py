@@ -11,8 +11,8 @@ import urllib.parse
 from scripts.build_backend_bundle import build_bytes
 
 ROOT = Path(__file__).resolve().parent
-PLUGIN_VERSION = '4.1.7.15'
-DEVELOPMENT_VERSION = '4.1.7.16pre1'
+PLUGIN_VERSION = '4.1.7.16'
+DEVELOPMENT_VERSION = '4.1.7.17pre1'
 UPDATE_URL = 'https://raw.githubusercontent.com/ZhangLinqi-07/zotero-pdf2zh-body-only/main/updates.json'
 MAX_ZOTERO_VERSION = '10.0.*'
 
@@ -27,8 +27,10 @@ def build(source, destination, server_url=None, development=False):
     with zipfile.ZipFile(source) as archive:
         files = {name: archive.read(name) for name in archive.namelist() if not name.endswith('/')}
     metadata = json.loads(files['manifest.json'])
-    metadata.update(name='Zotero PDF2zh Body Only', version=DEVELOPMENT_VERSION if development else PLUGIN_VERSION,
-                    description='PDF translation, shared-API structured reading, formula protection and full-page bilingual layout.',
+    metadata.update(name='Kinbo', version=DEVELOPMENT_VERSION if development else PLUGIN_VERSION,
+                    description='PDF translation, in-reader paper conversations and evidence-based deep reading for Zotero.',
+                    author='ZhangLinqi-07; guaguastandup and contributors',
+                    icons={'48': 'content/icons/kinbo-mark.svg', '96': 'content/icons/kinbo-mark.svg'},
                     homepage_url='https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only')
     metadata['applications']['zotero'].update(update_url=UPDATE_URL, strict_max_version=MAX_ZOTERO_VERSION)
     files['manifest.json'] = json.dumps(metadata, ensure_ascii=False, indent=2).encode('utf-8')

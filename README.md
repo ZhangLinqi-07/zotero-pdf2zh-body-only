@@ -1,247 +1,185 @@
-# Zotero PDF2zh Body Only
+# Kinbo
 
-[![GitHub Stars](https://img.shields.io/github/stars/ZhangLinqi-07/zotero-pdf2zh-body-only?style=flat&logo=github&label=Stars)](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/stargazers)
-[![README views](https://hits.sh/github.com/ZhangLinqi-07/zotero-pdf2zh-body-only.svg?label=README%20views&color=4f46e5)](https://hits.sh/github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/)
+**在 Zotero 中完成 PDF 翻译、论文深度阅读与 AI 论文对话。**
 
-让 Zotero 中的 PDF 翻译自动跳过参考文献与附录，保留双栏和数学公式，并用同一 API 做深度结构化阅读。
+[![Release](https://img.shields.io/github/v/release/ZhangLinqi-07/zotero-pdf2zh-body-only?label=Kinbo)](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/latest)
+[![GitHub Stars](https://img.shields.io/github/stars/ZhangLinqi-07/zotero-pdf2zh-body-only?style=flat&label=Stars)](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/stargazers)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
-## 插件与后台的一键更新
+Kinbo 是一个面向科研阅读的 Zotero 工具。翻译正文、追问一段原文、理解整篇论文，再把阅读结果留在论文条目下，让原文、证据、对话和笔记保持联系。
 
-从后台 0.4.1、插件 4.1.7.12 开始，Zotero 插件管理器中的 Check for Updates 可获得正式发布的配套版本。插件安装后，会将 XPI 内的后台源码包交给本机 Kinbo 服务校验，并在翻译、深度阅读和论文对话都空闲后备份、安装及重启。新版启动检查失败时恢复旧版源码。API 配置、论文、译文、阅读记录、Zotero 笔记与 Python 环境保留。
+[下载 Kinbo](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/latest) · [安装与更新](#安装与更新) · [开始使用](#开始使用) · [本版更新](CHANGELOG.md) · [反馈问题](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/issues)
 
-从 0.4.3 起，Windows 本机后台首次启动或自动更新重启时，会为当前用户注册 `Kinbo Backend (端口号)` 登录启动任务，沿用本次运行的目录、Python 环境和端口。以后登录 Windows 会静默启动后台，无需另开终端。任务允许电池供电和长时间运行，重复触发不会创建第二个服务；由该任务启动的进程异常退出时，每分钟重试，最多三次。注册失败会在后台日志和 `/api/capabilities` 的 `windowsAutostart` 字段明确显示，不影响当前服务。macOS、Linux 和远程监听地址不创建此 Windows 任务。
+## Kinbo 能做什么
 
-首次迁移仍要求旧后台正在运行，插件才能向它发送更新包。如果后台已经关闭，请先启动原后台一次，再在 Zotero 检查插件更新；新版完成自动同步后会配置后续登录启动。仅推送源码或仅安装 XPI 都不能唤醒尚未配置自启动的旧后台。
+### 翻译论文，保留阅读线索
 
-0.3.x 与 0.4.0pre1 后台需要先升级一次，装入后台更新接口。已有安装请下载新版本源码包，结束活动任务并停止后台后，使用 `python install.py --server-dir "原后台目录" --force` 安装，再运行原启动器。请使用原后台能够运行的 Python。新用户继续通过完整安装器安装。以后同一依赖范围内的升级可直接通过 Zotero 完成，改动过的本机源码、远程后台和依赖版本变化会提示人工处理。Zotero 工具菜单中的 Kinbo 后台更新状态与重试可查看状态并重试。
+在 Zotero 中直接翻译 PDF，生成译文和双语对照。可按设置跳过参考文献与附录，保留原始页面、双栏和数学公式；正文排不下时使用完整译文续页。明显空译、原文照返和长段英文残留会经过检测与一次补译，仍不完整时明确报错。
 
-GitHub 普通源码推送不会触发用户升级。维护者先更新后台版本、插件版本及校验清单，通过测试后推送对应的正式标签，例如 `v0.4.1`。仓库的 Publish paired Zotero release 工作流会构建 XPI 和源码 ZIP，上传草稿 Release，下载校验安装包后发布，最后提交 main 分支的 updates.json。只有这一步成功，用户才会收到新版。工作流失败时可查看 Actions 日志，原有更新通道继续有效。构建和本地预览入口为 `python scripts/build_release.py --tag v0.4.1`，此命令不会自行发布。
+表格文字会参与正文检查。扫描页、图片里的文字和复杂 PDF 仍受 OCR、文档解析与模型能力限制，检测不能替代逐句校对。
 
-## Kinbo 插件 UI 开发预览
+### 在论文旁提问，并返回证据
 
-本轮源码为 Zotero 内论文对话界面的第一阶段改造，采用 336px 紧凑侧栏、浅深色主题与原文证据链接。当前仍沿用原插件 ID、发布版本和更新通道，尚未发布新的 XPI 版本，源码推送不会触发自动升级。
+阅读器中的 Kinbo 对话侧栏默认宽 336px，可放在左侧或右侧。支持浅色、深色和窄窗口；选文进入提问上下文，模型配置按需展开，尽量为 PDF 留出空间。
 
-[设计规范](DESIGN.md)、[架构审计与迁移计划](docs/kinbo-ui-architecture.md)、[测试与验收结果](docs/ui/validation.md) 随源码提供。[独立交互预览](docs/ui/paper-chat-preview.html) 可下载仓库后直接在浏览器打开，使用合成内容，不连接后台；预览与插件共享实际视图和 CSS。后台 Web 控制页保持原设计。
+对话使用论文的完整文字层，历史保存在本机。回答中的物理页码引用可跳转；原句在指定页唯一匹配时，显示临时高亮。选文不会替代整篇论文输入。没有文字层的扫描页、图像内部内容需要先做 OCR。
 
-## Codex 模型后端与论文对话
+### 深度阅读完整论文，归档为子笔记
 
-当前源码已接入 Codex 登录，可为 PDF 正文翻译、完整论文深度阅读和阅读器侧栏对话提供模型。后台版本为 0.4.3，配套插件为 4.1.7.15。开发构建可以添加 `--development`，这类本地构建不会修改公开更新清单。
+把原始 PDF 或全部页面图像与完整阅读模板交给所选模型，结合实际联网检索取得的来源，梳理论文问题、方法、公式、实验、局限与后续方向。输入不会静默改为选页或本地分段摘要。
 
-从 Zotero 工具菜单打开 Kinbo 模型后端与 Codex 登录，或访问本地控制页的深度阅读页签。安装本机 Codex CLI 后，可使用已有的 ChatGPT 登录，或点击登录 Codex 前往官方页面登录。在页面中选择深度阅读和 PDF 翻译各自使用的模型后端，并保存设置。模型列表由本机 Codex 动态返回，实际可用模型与额度由账号决定。Kinbo 不读取或另存 Codex 登录令牌，也不修改用户 Codex 工程配置。
+达到服务商单次输出上限时保留已有内容并续写。完成后，结果直接保存为原论文父条目下可编辑的 Zotero 子笔记，保留来源、表格与原生 LaTeX 公式。关闭 Zotero 后的结果可在重新打开时补存；归档重试不会覆盖已编辑的笔记。
 
-0.4.2 起优先使用浏览器登录，确认无法使用这种登录方式时才尝试设备码。macOS 后台会补查常见 Homebrew 与用户安装路径。登录失败时可将包含步骤和错误码的提示反馈给维护者，也可在终端检查 `codex --version`、`codex login status`，使用 `codex login` 完成官方浏览器登录后重启 Kinbo 后台。请勿提供 auth.json、令牌或密钥。模型登录错误与 Zotero 检查插件更新独立，已经安装更新清单中的版本时显示 No updates found 属于正常结果。
+## 安装与更新
 
-Codex 深度阅读将原 PDF 的全部页面按顺序渲染为 144 dpi PNG，与完整阅读模板提交。联网核验必须取得实际搜索工具事件和有效来源，未取得时明确停止。阅读会保留完整输入、续写上下文和中间稿，完成后沿用自动子笔记流程。Codex 翻译沿用 pdf2zh_next 的段落、术语、公式与版式处理，通过本机受保护的生成接口逐段调用 Codex，串行处理请求，译文仍经过漏译检测。切换后端对之后的新任务生效，原有翻译 API 配置保留。
+当前正式版本为 **Kinbo 0.4.4**，配套 Zotero 插件 **4.1.7.16**。本轮原生安装与 Reader 验收环境为 Windows、Zotero 10.0.7；安装清单兼容上限为 Zotero 10.0.*，其他版本未逐一完成原生验收。
 
-打开 PDF 后点击工具栏的 Kinbo 对话可在左侧或右侧提问，也可从 Zotero 工具菜单选择 Kinbo 论文对话边栏。已打开的 PDF 会补挂按钮，选中文字后也可点击向 Kinbo 提问。对话使用完整文字层并保留本地历史，回答中的物理页码引用可跳转，准确原句在指定页唯一匹配时显示临时高亮。扫描页与图像内部内容需要 OCR，完整图像阅读继续使用深度阅读入口。打开侧栏、选择原文、检查登录和模型列表不发起模型生成，发送问题、翻译和深度阅读会使用所选账号的额度。
+| 你的情况 | 使用入口 |
+| --- | --- |
+| 第一次安装，Windows x64 | [完整安装包 ZIP](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.4/zotero-pdf2zh-body-only-v0.4.4.zip) |
+| 已有 Kinbo 后台，只需安装或覆盖插件 | [Zotero 插件 XPI](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/download/v0.4.4/zotero-pdf2zh-body-only-v0.4.4.xpi) |
+| 已安装可自动更新的 Kinbo | Zotero「工具 → 插件 → 齿轮 → 检查更新」 |
+| 版本说明与下载校验 | [Release](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases/tag/v0.4.4)、SHA256SUMS.txt |
 
-功能设计参考 [Zotero Paper AI Assistant](https://github.com/ddd3651/zotero-paper-AI-assistant)，Kinbo 的实现独立编写。模型连接使用 [Codex app-server 官方协议](https://learn.chatgpt.com/docs/app-server)，只读检查、模拟测试与真实生成的验证范围应分别说明。
+### Windows 首次安装
 
-本项目基于 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh) 提供章节识别、深度阅读与版式保护。**新用户可以直接下载本仓库安装，无需预先安装原版服务。** Kinbo 深度阅读支持完整 PDF 或全部页面图像与提示词一次提交，达到接口输出上限后自动续写，完成后自动生成论文子笔记。已有原版的用户也可以使用增强补丁安装方式。
+1. 安装 Zotero，下载完整 ZIP，解压到准备长期保留的文件夹。
+2. 双击 install-windows.cmd。安装器会校验下载资源、准备独立 Python 3.12 环境并安装翻译引擎，无需预先手动安装 Python。
+3. 在 Zotero「工具 → 插件」中选择「从文件安装插件」，安装 app 文件夹中的 zotero-pdf2zh-body-only.xpi。插件管理器显示名称为 **Kinbo**。
+4. 在现有翻译设置页中确认后台地址。新安装默认地址为 **http://127.0.0.1:8891**，翻译引擎选 pdf2zh_next；已有安装继续使用自己的端口。
+5. 选择免费翻译服务，或配置自己的模型 API / Codex 登录。随后从论文右键菜单或 PDF 阅读器开始使用。
 
-## Windows 新用户直接安装
+翻译设置页当前仍沿用 PDF2zh 名称，是兼容现有配置的入口。安装器下载所需组件，首次翻译还可能下载字体与文档分析模型；请保留安装目录，安装或翻译过程中不要移动它。
 
-先安装 Zotero。从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载 v0.3.6 或更新版本的 ZIP，完整解压到准备长期保留的文件夹，然后双击 **install-windows.cmd**。通过 GitHub 的 Code → Download ZIP 下载源码也能使用同一个入口。
+Windows 本机后台首次启动会为当前用户配置静默登录启动。需要手动启动时，运行 app/start-body-only.cmd。浏览器打开后台地址，可使用完整 Web 控制页；本版保留它原有的设计与功能。
 
-安装器面向 Windows x64，会从官方发布地址下载并校验 uv、原版服务和原版 XPI，准备独立的 Python 3.12 环境，安装兼容的翻译引擎，再应用本项目的章节跳过功能。无需提前安装 Python 或手动配置环境变量。首次安装需要联网下载较多依赖，请等到安装完成提示出现。
+若 Python 包下载较慢，可在解压目录使用镜像：
 
-安装完成后，本地服务会启动。到 Zotero 的插件管理窗口，使用从文件安装插件功能，选择生成在 **app** 文件夹中的 **zotero-pdf2zh-body-only.xpi**。增强 XPI 基于上游 4.1.7，保留原插件 ID 与已有设置。原 PDF2zh 右键菜单显示为 Kinbo，深度阅读位于其子菜单内，原有双语对照继续使用同一入口。上游原版 XPI 也会保留在 app 目录。增强包使用本仓库的更新地址，提供明确的版本、兼容范围与下载校验。后台 0.4.1 起支持通过配套插件同步源码更新。
-
-v0.3.4 及更早增强包缺少 Zotero 必填的更新地址字段，可能无法从 XPI 正常安装。遇到此问题请直接下载 v0.3.5 的 XPI，在 Zotero 插件管理窗口覆盖安装，无需卸载原插件或重新填写 API。旧包已安装者也需要手动安装这次修正版，之后插件可通过本仓库更新通道检查新版。
-
-在 Zotero 的 PDF2zh 设置里，将 Python 服务器地址改成 **http://127.0.0.1:8891**，翻译引擎选择 **pdf2zh_next**，再选择免费服务或填写自己的 API。之后照常右键 PDF 进行翻译或生成双语对照。原版插件默认的 8890 地址需要手动改成这里的 8891。
-
-首次安装启动会配置 Windows 当前用户的登录启动任务，以后登录会静默运行服务。尚未配置成功时，可双击 **app/start-body-only.cmd** 手动启动。浏览器打开 **http://127.0.0.1:8891/** 可以切换跳过参考文献与附录。请保留整个解压目录，安装后移动目录可能使虚拟环境中的路径失效。
-
-首次翻译还可能下载 BabelDOC 的字体和文档分析模型，这些资源不包含在源码包中。安装失败时可以重新运行安装器，它会复用已校验的下载和已经创建的专用环境。翻译过程中请等待任务结束再重新运行安装器。
-
-如果 Python 包下载较慢，可以在解压目录打开终端，明确选择中科大镜像。默认使用 PyPI。
-
-~~~console
+```console
 install-windows.cmd --index-url https://mirrors.ustc.edu.cn/pypi/simple
-~~~
+```
 
-## 已有 Python 和 uv 的新用户
+### 已有用户更新
 
-在空目录中安装服务，可直接运行下面的命令。执行 setup_fresh.py 的 Python 需要 3.10 或更新版本，安装器会另行准备运行服务所用的 Python 3.12。uv 可以从 [官方安装说明](https://docs.astral.sh/uv/getting-started/installation/) 获取。
+后台 **0.4.1 及更新版本**可以通过 Zotero 检查插件更新获得正式 XPI。插件携带配套后台源码包，会在翻译、阅读和对话任务空闲后校验、备份、同步及重启；启动检查失败时恢复旧版源码。API 配置、论文、译文、阅读历史、Zotero 笔记和 Python 环境保留。
 
-~~~console
-python setup_fresh.py --install-dir "你的新安装目录" --start
-~~~
+首次更新时原后台需要正在运行。尚未完成自启动配置、已经关闭的旧后台，请先手动启动一次。远程后台、修改过的受管理源码或依赖范围不匹配时，会明确提示人工处理。
 
-Windows 已验证新目录安装和运行流程。其他系统可以使用 Python 入口，跨平台安装逻辑有自动测试，完整翻译环境仍需自行确认。安装器拒绝向已有个人文件的非托管目录安装，已有原版服务请使用下文的 install.py。
+后台 **0.3.x / 0.4.0pre1** 需要先完成一次迁移：下载本版 ZIP，等待活动任务结束并停止原后台，使用原服务的 Python 对原目录安装，再运行原启动器。
 
-## 下载与兼容范围
+```console
+python install.py --server-dir "原后台目录" --force
+```
 
-从 [Releases](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/releases) 下载名称以 zotero-pdf2zh-body-only 开头的 ZIP，解压后进入包含 install.py 的文件夹。
+缺少有效更新地址的早期插件也需手动覆盖安装本版 XPI。无需先卸载插件或删除已有配置。源码推送本身不会触发升级；只有正式 Release 和更新清单完成发布后，检查更新才会提供新版。
 
-当前预览版本支持 Zotero PDF2zh 服务端 **4.1.7**、翻译引擎 **pdf2zh_next 2.9.0** 和 **BabelDOC 0.6.2**。新安装器自动锁定这些版本，并安装 **bitstring>=4.3,<5** 修复 BitStream 兼容问题。下载清单和 SHA256 保存在 [downloads.json](downloads.json)，上游来源为 [v4.1.7 发布页](https://github.com/guaguastandup/zotero-pdf2zh/releases/tag/v4.1.7)。
+### macOS、Linux 与已有 Python 环境
 
-本包增强 Python 托管的翻译环境。独立 winexe 模式暂不支持。其他版本的兼容性尚未验证，安装器会检查版本与原始文件，遇到未知改动时先停止。
+可使用 Python 安装入口；跨平台安装与更新逻辑有自动测试，完整原生翻译和 Zotero 安装仍需对应环境验证。创建全新环境时，需要 Python 3.10+ 和 uv，安装器会另外准备 Python 3.12：
 
-翻译引擎通常位于独立的托管虚拟环境，版本检查以那个环境为准。对已有原版的安装，请先确认原版能够正常翻译。若 pdf2zh_next 2.9.0 因 bitstring 5 缺少 BitStream 而无法启动，可在翻译引擎的 Python 环境中安装兼容版本。这个处理对应 [bitstring 的版本迁移说明](https://bitstring.readthedocs.io/en/stable/upgrading_to_version_5.html)。
+```console
+python setup_fresh.py --install-dir "新的安装目录" --start
+```
 
-~~~console
-"翻译引擎环境的Python可执行文件" -m pip install "bitstring>=4.3,<5"
-~~~
+已有可运行服务，可先预览再安装，并按需指定原服务 Python：
 
-## 已有原版服务的补丁安装
+```console
+python install.py --server-dir "原后台目录" --dry-run
+python install.py --server-dir "原后台目录" --server-python "原服务的Python可执行文件"
+```
 
-找到原版服务的目录，也就是同时包含 server.py、utils 和 config 的文件夹。在本包目录运行安装预览，将下面的目录占位符换成自己的实际路径。
+不要把这些命令指向不相关的个人目录。当前依赖范围以 [compatibility.json](compatibility.json) 为准：服务组件 4.1.7、pdf2zh_next 2.9.0、BabelDOC 0.6.2、bitstring>=4.3,<5。独立 winexe 运行方式尚未适配。
 
-~~~console
-python install.py --server-dir "你的服务目录" --dry-run
-~~~
+## 开始使用
 
-确认预览中的目标目录正确后，再运行安装。
+### PDF 翻译与双语对照
 
-~~~console
-python install.py --server-dir "你的服务目录"
-~~~
+右键论文或 PDF，打开 **Kinbo** 菜单，选择翻译或双语对照。参考文献、附录及排版选项可在本地 Web 控制页调整。已有翻译 API 继续使用，不需要为深度阅读再维护另一套密钥。
 
-安装器会备份需要修改的源文件，并在目标目录生成启动器。已有 API 配置、PDF 附件、翻译结果与缓存均保留。安装目录可以含空格，也可以放在其他磁盘，程序不依赖作者电脑的路径。
+### 论文对话
 
-如果原服务使用专门的 Python 环境，可在安装时明确指定该环境的 Python 可执行文件。安装器也会尝试寻找服务旁的 .server-venv 或服务内的 .venv。
+打开 PDF，点击阅读器工具栏的 **Kinbo 对话**，或在 Zotero 工具菜单选择 **Kinbo 论文对话边栏**。
 
-~~~console
-python install.py --server-dir "你的服务目录" --server-python "原服务使用的Python可执行文件"
-~~~
+- 直接输入问题，使用 Ctrl+Enter / Cmd+Enter 发送。
+- 选中原文后点击「向 Kinbo 提问」，核对页码与选文再发送。
+- 在「模型与设置」中选择已有翻译 API 或 Codex，按需启用联网搜索、思考强度与回答要求。
+- 生成中可停止；关闭侧栏不会取消后台生成，重新打开可恢复已有会话。
 
-免费翻译可以继续使用。深度阅读需要用户自己的 LLM API，并直接复用翻译配置，不会回退到公共免费翻译接口。本项目不提供作者的 API 额度。
+打开侧栏、选择原文、读取模型列表与检查登录不会发起模型生成。发送问题才调用所选服务。联网搜索当前供 Codex 对话使用，来源只依据真实返回的检索记录展示。
 
-## 深度结构化阅读
+### 深度阅读与笔记
 
-在 Zotero 右键论文或 PDF，在 Kinbo 子菜单中选择深度阅读。运行中同一入口显示停止阅读；对话、模型登录和后台更新位于 Zotero 工具菜单。增强插件直接读取 PDF、同步当前启用的翻译 API 配置并开始阅读，在 Zotero 内显示进度，完成后自动创建子笔记，无需跳转网页。选择深度阅读即授权本次模型请求，会消耗自己的 API 额度。运行中选择停止阅读会请求停止后续续写，保留已生成的内容。
+右键论文或 PDF，在 Kinbo 菜单中选择 **深度阅读**。同一篇任务运行时，该入口显示 **停止阅读**，用于请求停止后续续写并保留已有内容。
 
-阅读完成后，插件自动创建可编辑的 Zotero 子笔记，挂在最初选择的论文父条目下。标题、段落、表格、来源记录与原生 LaTeX 公式一起保存。期间切换选中的论文不会改变归属，PDF 附件也不会被改写。暂时关闭 Zotero 时，已生成结果留在本地服务，重新打开后自动补存。保存重试会查找同一次阅读的已有笔记，避免重复创建，也不会覆盖用户编辑后的笔记。归档过程不调用模型。
+自动归档需要 PDF 已归属于论文父条目，且资料库可编辑。阅读进度在 Zotero 内显示；完成后可在父条目下查看子笔记。也可从本地 Web 页上传完整 PDF，查看阅读记录，下载 Markdown 或 HTML；网页上传没有 Zotero 归属信息时不会自动创建子笔记。
 
-页面显示等待保存、保存成功或待重试状态。模型输出未完成时，子笔记保留显著的未完成说明。独立 PDF 需要先在 Zotero 创建父条目，且资料库必须允许编辑。直接在网页上传的 PDF 没有 Zotero 归属信息，仍可下载 Markdown 与 HTML，自动归档应从 Zotero 右键入口发起。
+阅读模板位于源码的 [payload/prompts/deep_reading_zh.txt](payload/prompts/deep_reading_zh.txt)。模型和接口需要支持所选输入方式及实际搜索工具；未取得真实搜索证据时会明确失败，不把离线回答标为已联网。
 
-网页控制页仍可单独使用，选择本机 PDF 或服务目录中的 PDF 后点击开始。若之前已用 API 翻译过，页面会读取服务端保存的同一份配置，无需重新填写密钥。首次在 Zotero 配置 API 后，即使尚未进行收费翻译，也可通过右键入口同步配置并直接阅读。Zotero 和网页使用同一套完整 PDF 阅读流程与价格设置。
+### 模型与登录
 
-共享配置可识别 OpenAI 兼容 API、OpenAI、Gemini、DeepSeek、SiliconFlow API、ModelScope、智谱、Grok 和 Groq。实际阅读还要求所选模型和接口支持 PDF 文件输入，纯文本翻译接口无法直接读取 PDF。OpenAI 兼容中转平台使用后台给出的地址和完整模型名。只有免费翻译服务时，需先配置自己的接口。
+Zotero 工具菜单中的 **Kinbo 模型后端与 Codex 登录**打开本地模型控制页。翻译、深度阅读和论文对话可按各自设置使用模型后端。
 
-页面里的共享 API 配置会写入翻译使用的 config.toml，已有的其他翻译设置保留。接口地址、模型与已配置状态可以展示，密钥不会通过配置查询接口返回，也不写入浏览器本地存储。
+API 可复用 OpenAI 兼容接口、OpenAI、Gemini、DeepSeek 等已有配置；能翻译文本不代表接口能接收完整 PDF 或执行搜索。Codex 需要本机已安装 CLI，并完成官方登录；可用模型和额度由实际账号返回，Kinbo 不另存登录令牌，也不修改用户的 Codex 工程配置。
 
-阅读模板保存在 prompts/deep_reading_zh.txt，内容来自本项目维护者提供的论文深度阅读提示词。笔记覆盖论文信息、研究问题、方法与公式、实验、图表、局限、未来方向和总结。理论论文按证明、假设与边界调整内容，不机械填补实验栏目。
+深度阅读接受最大 50 MB 的完整 PDF；全部页面图像模式按顺序渲染每一页，不静默截断。DeepSeek 官方图像模式另有 600 页、单页尺寸及序列化请求 48 MiB 检查。服务商仍可能限制文件、上下文和单次输出，超限会明确报错。
 
-每次深度阅读先联网检索论文身份、发表状态和外部资料，优先使用出版社、会议、期刊和作者机构的官方页面。默认复用当前阅读 API，Gemini 使用 Google Search，OpenAI 兼容服务使用 Responses web_search，DeepSeek 官方使用独立 Search API。也可在阅读选项中选择另一套已有的翻译 API 负责检索，无需另建密钥存储。接口未提供真实搜索记录与有效网页来源时明确失败，不自动退回离线阅读，也不自动重复收费调用。工具支持情况取决于服务商和模型。
+## 数据、费用与使用边界
 
-检索结果与原始 PDF、完整提示词一起交给阅读模型。论文不在本地切分、摘录或先生成摘要，图表、公式与扫描页交给支持 PDF 的模型解析。笔记区分 PDF 证据和外部证据，自动保存工具返回的来源链接、检索时间与检索用量。信息无法核实时仍须标为未核实。Gemini 和 Responses 的阅读请求也保留原生搜索工具，续写期间取得的新来源一并保存。
+对话、阅读记录与归档状态在本机保存；提问、翻译或深度阅读时，相关 PDF、文字、图像、提示词和上下文会交给你选择的模型服务。请按自己的数据要求选择服务与论文内容。
 
-阅读选项提供自动、完整原始 PDF、全部页面图像三种输入模式。自动模式下，DeepSeek 官方 `deepseek-flash` 使用全部页面图像，其余 API 使用原始 PDF。图像模式将每一页渲染为 144 dpi 整页 PNG，保留页码顺序，与完整提示词一次提交，不选页或分段摘要。每次续写仍携带全部页面和已有对话。笔记会标明实际输入方式和页数，图像中的细小公式识别受模型视觉能力影响。
+Kinbo 不提供公共模型额度。免费翻译服务可用于其支持的翻译任务；深度阅读需要自己的 API 或 Codex。实际费用和额度按所选平台计算，停止请求后当前已发出的调用仍可能产生费用。
 
-DeepSeek 官方不接受 PDF 文件输入，但 Flash 支持图像，见 [DeepSeek 视觉文档](https://api-docs.deepseek.com/guides/vision/)。搜索使用同一密钥的 Search API，Flash 阅读请求不携带它会忽略的原生 web_search 工具。插件不会替换用户选择的模型。官方图像模式最多 600 页，并检查单页尺寸及序列化请求的 48 MiB 限制。超限时明确停止，未通过本机预检时不会调用搜索或阅读 API。若搜索证据或续写历史使完整请求超限，则该阅读请求不会发送，已有笔记保留。上下文超限和服务商拒绝输入也会明确失败。
+深度阅读保留完整输入与中间结果，模型输出上限时续写，不自行设置固定输出 token 上限或思考预算。论文对话按所选模型提供思考强度选项。引用、高亮与来源记录帮助核对证据，不能替代对模型解释和原文的判断。
 
-Gemini 模型自动使用原生 generateContent，OpenAI 官方自动使用 Responses，其他模型默认使用 Chat Completions，也可手动选择协议。原始 PDF 输入说明见 [Gemini 文档](https://ai.google.dev/gemini-api/docs/generate-content/document-processing) 与 [OpenAI 文档](https://developers.openai.com/api/docs/guides/file-inputs)。中转接口不支持所选格式时明确失败，不会退回文本摘要。Zotero 中的启动错误会显示具体的本地校验原因，原始 HTTP 异常及凭据不会展示。
+## 常见问题
 
-升级至 v0.3.6 时需要同时更新增强后台和 XPI，并重新启动后台。已有翻译 API 与 Zotero 资料库不需要重新配置。只安装新 XPI 而继续运行旧后台，会得到明确的后台版本提示。
+**检查更新显示没有新版。** 核对插件当前版本、更新地址和 Release 是否已完成发布。0.4.4 对应插件 4.1.7.16；仅拉取仓库源码不会替换已安装的 XPI。也可从本版 Release 手动覆盖安装。
 
-翻译引擎完成模型阶段后会检查识别到的较长英文正文，检测空译文、原文照返和中文译文中残留的长英文句子，对异常段落绕过旧缓存补译一次，并保留公式占位符。补译仍失败则记录页码并使任务失败，避免把整段英文当作已完成译文。参考文献和附录按原有跳过设置处理。此检查针对明显漏译，不能代替逐句语义校对，也无法覆盖 PDF 解析阶段完全没有识别出的文字。
+**插件已更新，但后台无法连接。** 确认原后台正在运行、端口与 Zotero 设置一致。新安装默认 8891，已有用户可能使用其他端口；浏览器访问该地址可检查服务。更新不能唤醒尚未配置自启动的旧后台。
 
-对于有文本层的表格，先依据 PDF 文字块恢复完整单元格，避免将连续句子拆成单词碎片或单个字母。表格中的短句说明也参加漏译检查，数字和数学公式继续保留。译文在原单元格范围内排版，无法容纳时进入完整译文续页。图片内部的文字仍受原引擎识别能力限制。
+**Codex 登录或联网阅读失败。** 先核对本机 CLI、官方登录状态，以及所选服务是否支持要求的工具。错误中的步骤和错误码可用于排查；不要在问题反馈中粘贴密钥、登录令牌、完整配置或私人论文。
 
-插件不发送输出 token 上限、思考预算或思考强度参数，旧版分段和 token 设置不再生效。网络等待默认不设置超时，可自行指定秒数。模型与平台自身仍有文件大小、上下文和单次输出边界，本地接受的 PDF 最大为 50 MB。
+**扫描论文或公式没有正确识别。** 论文对话依赖文字层，需要先做 OCR。完整页面图像阅读可处理视觉内容，但细小公式、图片文字和图表理解仍受模型能力限制。
 
-达到平台单次输出上限后，插件在保留完整 PDF 和已有输出的对话中自动接续，直到接口正常完成，不设置固定续写次数。Gemini 原生思考签名按原样保留，重复的边界文字会合并。每次返回都保存检查点，后续失败、服务重启或手动停止时保留已有笔记并明确标记未完成，避免重复输出造成无效循环。Kinbo 菜单和网页提供停止后续续写，当前已发出的请求结束后停止新增调用。API 自身拒绝过长输入或持续无法生成正文时，无法保证得到完整笔记。
+**为什么仓库和文件名仍有 pdf2zh？** 产品名称与维护方向是 Kinbo。仓库地址、插件 ID、配置键和部分安装资源名暂时保留，以便已有用户原位升级；使用相同插件 ID 的安装不能并存。来源和许可证见文末。
 
-笔记可下载 Markdown，也可导出公式已经排版的离线 HTML。界面分别展示阅读与检索的 API 请求次数和 token 用量，Gemini 的输出统计包含接口报告的思考 token。续写会产生额外调用，各轮输入与输出均计入统计。填写阅读服务商单价和自己的充值比例后，可估算阅读生成的 token 部分费用，检索阶段与搜索工具费用另计，整篇总费用以服务商账单为准。
+## 开发与验证
 
-## 公式与双栏保护
+```text
+plugin/       Zotero 桥接、Reader 适配、对话视图、样式与笔记渲染
+payload/      本地后台、Web 控制页、模型与翻译运行模块
+scripts/      校验清单、后台源码包与正式发布工具
+upstream/     安装校验及恢复使用的固定组件基线
+tests/       模拟接口、安装、更新、PDF 与 Reader 验证
+```
 
-控制页默认开启保留双栏。原文和译文以完整页面左右并排，原文在左，译文在右，每一半都保留原有双栏。原来的裁剪对照入口也会改走整页对照，避免把论文拆成单栏。需要手机裁剪模式时，可以关闭保留双栏选项。
+设计与扩展：[DESIGN.md](DESIGN.md)、[UI 架构与迁移计划](docs/kinbo-ui-architecture.md)、[独立 UI 预览](docs/ui/paper-chat-preview.html)、[UI 验证记录](docs/ui/validation.md)。预览需在下载源码后本地打开，使用合成内容，不连接后台。
 
-公式保护默认自动识别。对于密集数学、金融和经济论文，可以选择公式优先，保留公式较多的段落及其原有位置。这个模式可能让夹杂公式的整段文字继续保持英文。普通排版选项可关闭额外公式保护。
+安装测试依赖并执行基础检查：
 
-实现保留分数线等绘图元素，补充 Cambria Math 字体识别，限制文本跨越原栏间距，避免单个过长译文把整篇字号一起缩小。公式周围的说明文字继续翻译。原栏内无法安全容纳的完整译文会进入紧随该页的双栏译文续页，正文编号可点击跳转。续页保留完整模型译文，并以原 PDF 的公式图像呈现其中的公式。排版失败不会用英文原文代替译文。极端版式、扫描件和错误的公式识别仍需检查。
-
-## 在 Zotero 中使用
-
-在安装后的服务目录中运行启动器。请沿用能够运行原服务的 Python 环境。
-
-~~~console
-python run_body_only.py --server-dir "你的服务目录"
-~~~
-
-Windows 用户也可以双击目标服务目录中的 start-body-only.cmd，脚本会调用安装时选定的 Python。启动器使用独立端口，日志位于服务目录中的 body-only-logs。
-
-打开 Zotero 的 PDF2zh 设置，将 Python 服务器地址设为 **http://127.0.0.1:8891**，翻译引擎选择 **pdf2zh_next**。之后照常右键原始 PDF，选择翻译 PDF 或双语对照。
-
-浏览器打开 **http://127.0.0.1:8891/**，页面上方有自动跳过参考文献与附录开关，默认开启。开关保存后对之后发起的任务生效。关闭后沿用原有的完整翻译范围。页面也会显示最近一次识别的章节与页数。
-
-端口已被占用时可另选一个端口，并在 Zotero 中填写相同地址。
-
-~~~console
-python run_body_only.py --server-dir "你的服务目录" --port 8892
-~~~
-
-## 工作方式
-
-程序先在本机识别 References、Bibliography、Works Cited、Appendix、Appendices、Supplementary Material、参考文献、附录等明确标题，再确定首个尾部章节的位置。标题之前的正文照常翻译，后面的段落和页面保留原文。双栏文档按栏的阅读顺序处理。
-
-参考文献从页面中间开始时，前面的正文仍能翻译。完整尾页不进入翻译或自动术语提取，最后的 PDF 仍保留这些原始页面。章节识别本身不调用语言模型，后续正文翻译仍使用用户配置的翻译服务。
-
-识别到首个尾部章节后，后续所有内容均保留原文。这个规则适合正文之后接参考文献和附录的常见论文结构。若文献后还出现需要翻译的正文，建议关闭本功能。
-
-## 识别边界
-
-规则面向有文本层、章节标题清晰的论文。目录中的页码条目、正文中提到 Appendix 的句子，以及字体和位置不符合标题特征的文本，会尽量排除。没有把握识别时，保留原有翻译范围。
-
-扫描件、旋转或特殊裁剪页面、只用字母标记的附录、罕见标题格式，可能无法识别。如果正文与文献被 PDF 合并为同一段落，程序优先保留正文，少量交界内容可能仍进入翻译。请检查最终译文，规则无法保证每篇论文都正确识别。
-
-请关闭原插件的仅保留实际翻译页面选项，以便输出中保留原文尾页。原有跳过最后几页选项可以继续使用，程序采用两者中更小的翻译范围。
-
-## 关闭与恢复
-
-只想恢复全文翻译时，在本地控制页关闭开关即可。
-
-需要恢复安装前的程序文件时，退出本增强版服务，在下载包目录运行恢复脚本。脚本保留备份，并在发现安装后又被修改的文件时停止，让用户先处理冲突。
-
-~~~console
-python restore.py --server-dir "你的服务目录"
-~~~
-
-已有 v0.1.0 或 v0.2.0 增强包的用户，退出旧服务后，先用 restore.py 恢复原文件，再用新版 install.py 安装，并安装新的增强 XPI。个人 API 配置与翻译结果不参与恢复。若旧服务仍占着端口，新启动器会提示退出旧窗口或改用其他端口。上游更新可能覆盖本补丁，升级前可先恢复，待本项目发布支持新版本的增强包后再安装。
-
-## 测试
-
-本地单元测试涵盖章节标题、同页正文与文献、双栏阅读顺序、异常后的内容恢复、开关保存，以及安装、重复安装、恢复和个人文件保留。新安装器另有下载校验、ZIP 路径检查、个人目录保护、新安装与重试测试。
-
-~~~console
+```console
 python -m pip install -r requirements-test.txt
 python -m unittest discover -s tests -v
-~~~
+node tests/test_paper_chat_ui.js
+node tests/test_note_format.js
+node tests/test_reading_bridge.js
+node tests/test_reading_backend_ui.js
+node tests/test_backend_update.js
+python tests/integration_backend_update.py
+```
 
-完整翻译流程另使用本机模拟模型接口验证，参考文献和附录的标记没有进入模型请求，交界页正文正常翻译，输出保留全部页面。测试不会使用任何真实 API 密钥。可用已安装的 pdf2zh_next 环境运行集成测试。
+原生翻译与 PDF 排版集成需要对应引擎环境，见 tests/integration_local.py、tests/integration_layout.py；Zotero 原生 Reader 验证入口为 tests/integration_chat_reader.py，使用独立 profile、资料库和合成 PDF。缺少依赖而跳过的检查不计为通过。模拟模型测试不代表真实模型生成质量。
 
-~~~console
-python tests/integration_local.py
-~~~
+开发构建使用校验过的组件 XPI。正式发布同步 Kinbo 版本、插件版本与 payload 校验清单，执行配套发布工作流；安装包下载校验成功后才切换 updates.json，流程见 [.github/workflows/release.yml](.github/workflows/release.yml)。
 
-数学双栏集成测试使用本地模拟模型，比较六处公式区域的像素、完整并排宽度和过长译文续页的完整结尾。Windows 默认使用本机的 Cambria Math 测试字体，其他系统可通过参数提供已安装的数学字体。
+## 开源组件与许可证
 
-~~~console
-python tests/integration_layout.py --font "本机数学字体文件" --font-number 0
-~~~
+Kinbo 作为独立项目维护与发布，集成了开源翻译与 Zotero 组件。Zotero PDF2zh 的插件/服务代码来自 [guaguastandup/zotero-pdf2zh](https://github.com/guaguastandup/zotero-pdf2zh) 4.1.7；PDF 翻译依赖 [PDFMathTranslate-next](https://github.com/PDFMathTranslate/PDFMathTranslate-next) 与 [BabelDOC](https://github.com/funstory-ai/BabelDOC)。感谢这些项目及其贡献者。
 
-浏览器使用本地 vendored Marked、DOMPurify 和 MathJax 渲染笔记，渲染时无需访问外部脚本或字体服务。版本、下载来源和校验值见 web/vendor/sources.json，各依赖许可证保留在同目录。
+阅读器论文对话与 Codex 连接由本项目独立实现，功能设计参考 [Zotero Paper AI Assistant](https://github.com/ddd3651/zotero-paper-AI-assistant) 的公开功能，未复制其源码。笔记渲染使用本地随包提供的 Marked、DOMPurify 与 MathJax，各自许可证随资源保留。
 
-## 项目统计
+项目代码采用 **GNU AGPL v3**，见 [LICENSE](LICENSE)。来源、作者声明、修改记录与依赖说明见 [NOTICE.md](NOTICE.md)。不随仓库分发私人论文、个人配置、API 密钥或模型权重。
 
-Star History 展示本仓库的 Star 增长情况，点击曲线可打开交互图表。图表支持浅色和深色主题。
+## 关注项目
 
-<a href="https://www.star-history.com/#ZhangLinqi-07/zotero-pdf2zh-body-only&amp;Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ZhangLinqi-07/zotero-pdf2zh-body-only&amp;type=Date&amp;theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ZhangLinqi-07/zotero-pdf2zh-body-only&amp;type=Date" />
-    <img alt="Star History 星标增长曲线" src="https://api.star-history.com/svg?repos=ZhangLinqi-07/zotero-pdf2zh-body-only&amp;type=Date" width="800" />
-  </picture>
-</a>
-
-顶部 README views 徽章由 [Hits](https://github.com/silentsoft/hits) 提供，从加入徽章后开始记录图像访问请求，受缓存和重复请求影响，仅作参考。维护者可在 [Insights → Traffic](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/graphs/traffic) 查看 GitHub 统计的近期浏览、独立访客与克隆量，具体口径见 [GitHub 官方说明](https://docs.github.com/en/repositories/viewing-activity-and-data-for-your-repository/viewing-traffic-to-a-repository)。仓库列表右侧的绿色小曲线由 GitHub 自动展示近期提交活跃度。
-
-## 上游与许可证
-
-上游 Zotero 插件和服务由 guaguastandup 及其贡献者开发，本项目在其 4.1.7 源码基础上加入正文翻译过滤功能。项目与上游保持独立，详细来源和修改日期见 [NOTICE.md](NOTICE.md)。
-
-代码沿用 **GNU AGPL v3**，完整文本见 [LICENSE](LICENSE)。BabelDOC、pdf2zh_next、模型和其他依赖由各自项目维护。本仓库不分发模型权重、论文、用户环境文件、API 密钥或本地翻译缓存。
+[Star History](https://www.star-history.com/#ZhangLinqi-07/zotero-pdf2zh-body-only&Date) · [版本记录](CHANGELOG.md) · [问题反馈](https://github.com/ZhangLinqi-07/zotero-pdf2zh-body-only/issues)

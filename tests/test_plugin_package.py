@@ -63,6 +63,8 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(app['strict_max_version'], '10.0.*')
         self.assertEqual(app['strict_min_version'], '6.999')
         self.assertEqual(metadata['version'], build_plugin.PLUGIN_VERSION)
+        self.assertEqual(metadata['name'], 'Kinbo')
+        self.assertEqual(metadata['icons']['48'], 'content/icons/kinbo-mark.svg')
         self.assertNotIn(b'BodyOnlyLocalServer =', bootstrap)
         self.build(self.root / 'repeat.xpi')
         self.assertEqual(self.public.read_bytes(), (self.root / 'repeat.xpi').read_bytes())
