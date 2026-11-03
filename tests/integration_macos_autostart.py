@@ -60,6 +60,15 @@ http.server.HTTPServer(('127.0.0.1', args.port), Handler).serve_forever()
                     break
                 except OSError:
                     if time.monotonic() > deadline:
+                        pidfile = root / f'body-only-logs/server-{port}.pid'
+                        print('Disposable backend PID file present:', pidfile.exists(), flush=True)
+                        if pidfile.exists():
+                            pid = pidfile.read_text().strip()
+                            for command in (['/bin/ps', '-p', pid, '-o', 'pid,ppid,stat,comm'],
+                                            ['/usr/sbin/lsof', '-nP', '-a', '-p', pid, '-iTCP'],
+                                            ['/usr/bin/sample', pid, '1', '1']):
+                                diagnostic = subprocess.run(command, capture_output=True, text=True, timeout=10)
+                                print(diagnostic.stdout[-12000:] + diagnostic.stderr[-1000:], flush=True)
                         logs = '\n'.join(log.read_text(errors='replace')[-2500:] for log in (root / 'body-only-logs').glob('*.log'))
                         state = subprocess.run(['/bin/launchctl', 'print', service], capture_output=True, text=True).stdout
                         raise AssertionError('Real launchd backend did not become reachable\n' + logs + '\n' + state[-4000:])

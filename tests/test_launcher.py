@@ -2,10 +2,12 @@
 import os
 import io
 import json
+import http.server
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -15,6 +17,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherTests(unittest.TestCase):
+    def test_loopback_health_check_does_not_use_a_system_proxy(self):
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200); self.end_headers()
+                self.wfile.write(b'{"status":"success","pdfReading":true,"version":"0.4.5"}')
+            def log_message(self, *args):
+                pass
+        server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                (Path(directory) / 'server.py').touch()
+                with patch.object(sys, 'argv', ['run_body_only.py', '--server-dir', directory, '--port', str(server.server_port)]), \
+                     patch.object(run_body_only.urllib.request, '_opener', None), \
+                     patch.object(run_body_only.urllib.request, 'getproxies', return_value={'http': 'http://127.0.0.1:1'}), \
+                     patch.object(run_body_only.urllib.request, 'proxy_bypass', return_value=False), \
+                     patch.object(run_body_only.subprocess, 'Popen') as launch:
+                    run_body_only.main()
+                launch.assert_not_called()
+        finally:
+            server.shutdown(); thread.join(timeout=3); server.server_close()
+
     def test_healthy_new_backend_is_reused_without_a_second_process(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
